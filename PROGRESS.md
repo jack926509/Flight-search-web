@@ -11,13 +11,18 @@
 | Phase | 內容 | 程式碼 | 測試 | 人工驗收 | 狀態 |
 |---|---|---|---|---|---|
 | 0 | 環境準備 | — | — | 🧑 | 🔶 部分待辦 |
-| 1 | 雙 provider＋切換鏈 | ✅ | ✅ 19 | 🔶 | 🔶 待人工驗收 |
+| 1 | 雙 provider＋切換鏈 | ✅ | ✅ 20 | 🔶 | 🔶 待人工驗收 |
 | 2 | 快取＋歷史＋stale | ✅ | ✅ 6 | 🔶 | 🔶 待人工驗收 |
 | 3 | 熔斷＋配額＋防護＋排程 | ✅ | ✅ 16 | 🔶 | 🔶 待人工驗收 |
 | 4 | 前端 UI | ✅ | — | 🔶 | 🔶 待人工驗收 |
 | 5 | 部署＋E2E＋驗收 | ✅ E2E | ⬜ | ⬜ | ⬜ 未開始 |
 
-**目前測試總數：41 passing**（Phase 1: 19 + Phase 2: 6 + Phase 3: 16）
+**目前測試總數：42 passing**（Phase 1: 20 + Phase 2: 6 + Phase 3: 16）
+
+**2026-07-06 全系統程式碼審查**：修正節流自動恢復、`/api/history` rate limit、
+token 時序攻擊防護、UTC 日期偏移、Playwright 依賴缺失等 12 項問題。
+環境變數規劃已對齊附錄 B——範本見 `backend/.env.example`、`frontend/.env.example`，
+Zeabur / Cloudflare Pages 部署對照表與順序見根目錄 `DEPLOYMENT.md`。
 
 ---
 
