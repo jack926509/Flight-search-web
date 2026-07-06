@@ -22,6 +22,7 @@ class SearchResult(BaseModel):
     flights: list[Flight]
     source: str
     fetched_at: datetime
+    stale: bool = False
 
 
 class FlightProvider(ABC):

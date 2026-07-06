@@ -23,7 +23,8 @@ def _make_ff_result(price: int = 8500, airlines: list[str] | None = None):
     return flights_obj
 
 
-def test_fast_flights_maps_to_twd():
+@pytest.mark.asyncio
+async def test_fast_flights_maps_to_twd():
     from providers.fast_flights_provider import FastFlightsProvider
 
     mock_result = [_make_ff_result()]
@@ -33,10 +34,7 @@ def test_fast_flights_maps_to_twd():
         patch.object(provider, "_run_sync", return_value=(mock_result, MagicMock())),
         patch("providers.fast_flights_provider._SEMAPHORE", new=__import__("asyncio").Semaphore(1)),
     ):
-        import asyncio
-        result = asyncio.get_event_loop().run_until_complete(
-            provider.search("TPE", "NRT", "2026-10-01")
-        )
+        result = await provider.search("TPE", "NRT", "2026-10-01")
 
     assert result.source == "fast_flights"
     assert result.flights[0].currency == "TWD"
