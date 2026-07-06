@@ -1,8 +1,8 @@
-# 機票快速搜尋系統建置計畫書 v2.3
+# 機票快速搜尋系統建置計畫書 v2.4
 
 | 項目 | 內容 |
 |---|---|
-| 版本 | v2.3（技術審查修訂：async 阻塞防呆、schema 一致化、排程冪等、防線措辭校準） |
+| 版本 | v2.4（情境推演修訂：新增附錄 G 風險清單；修正 price_history 污染與空結果語意兩個規格級 bug） |
 | 日期 | 2026-07-06 |
 | 開發工具 | Claude Code（後端／整合）＋ Codex（前端） |
 | 部署 | 後端 Zeabur **付費方案（已到位，US$5/月，資源有保證）**、前端 Cloudflare Pages |
@@ -31,6 +31,8 @@
 | 16 | **(v2.3)** 每日排程改為「冪等補跑」設計＋health 必須真實觸及 Postgres | 容器重啟窗口可能漏跑整天；health 若只回記憶體狀態，Supabase 防休眠保活即失效 |
 | 17 | **(v2.3)** Amadeus 定位由「備援」升格為「共同主源」心態；§5.5 補述機房 IP 風險 | 封鎖關鍵是 datacenter IP 信譽而非請求節奏，jitter 偽裝效果有限，Amadeus 接手頻率可能高於預期——不改架構，改預期 |
 | 18 | **(v2.3)** 防線 #9 措辭校準；附錄 D 回滾補 schema 警語；SerpAPI 明定僅留 stub | token 編入前端 bundle 即公開，防的是路過掃描不是盜用；git reset 不會回滾 DB schema；第四層預期用不到就不先實作 |
+| 19 | **(v2.4)** price_history 只收「1 人經濟艙」基準查詢；空結果 ≠ 失敗（不 failover、不計熔斷） | 商務艙查詢會把虛高價寫進「最低價」趨勢；空結果觸發 failover 會白燒 Amadeus 配額並誤觸熔斷——兩者都是上線才會發現的規格 bug |
+| 20 | **(v2.4)** 新增附錄 G〈情境風險清單〉共 14 條，附各 Phase Prompt 對應補丁 | 以「上線跑 30 天會在哪出事」推演：配額計數 crash 窗口、E2E 流量自傷、深層連結不可行、跨源趨勢跳動、XFF 偽造等 |
 
 ---
 
@@ -208,6 +210,11 @@ Dockerfile: python:3.12-slim + uvicorn，讀 PORT 環境變數）：
 a. 未過期快取 → 回傳（source: "cache"）
 b. 未命中 → 走 Phase 1 切換鏈 → 成功寫快取（TTL 由 CACHE_TTL_MINUTES
    環境變數控制，預設 45）＋ upsert price_history 當日最低價
+   【history 基準鐵則】只有 adults=1 且 cabin=economy 的查詢
+   才寫 price_history——商務艙/多人的「最低價」會污染趨勢基準
+   【空結果語意】provider 正常回傳但 flights 為空 = 成功的空結果，
+   直接回傳（前端有查前後日 UI），不得視為失敗觸發下一個 provider
+   （否則冷門航線每次查詢都白燒 Amadeus 配額），也不計入熔斷失敗
 c. 鏈全失敗且有過期快取 → 回傳並加 "stale": true, "fetched_at"
 d. 每次寫入順手 DELETE 過期超過 7 天的快取
 【4. GET /api/history?route=TPE-NRT&days=90】
@@ -246,7 +253,10 @@ d. 每次寫入順手 DELETE 過期超過 7 天的快取
   provider_status schema 見附錄 E §E7，另存為 db/schema_v2.sql
 
 【2. Amadeus 配額保護】
-- 每次呼叫 monthly_calls +1（月份輪替歸零）
+- 每次呼叫 monthly_calls +1（月份輪替歸零）；
+  【計數順序鐵則】先 +1 落庫、再打 Amadeus——呼叫與計數之間
+  若容器 crash，寧可多計（保守）不可少計（漏計會突破配額上限
+  產生真實費用，production 已綁帳單）
 - 達 AMADEUS_MONTHLY_QUOTA 的 90% → 停用 Amadeus、health 顯示 warning
   （寧回 stale 也不產生費用）
 
@@ -355,7 +365,8 @@ API base 由 NEXT_PUBLIC_API_URL 提供、token 由 NEXT_PUBLIC_API_TOKEN
 1. Zeabur 部署 `/backend`（環境變數見附錄 B），綁定付費方案資源
 2. Cloudflare Pages 部署 `/frontend`（build：`npm run build`、output：`out`）
 3. 後端 CORS 只允許 Pages 網域
-4. **Playwright E2E**（請 Claude Code 寫）：三條測試——(a) 搜尋 TPE→NRT 出現 ≥1 張卡片 (b) 切換排序後首卡價格/時間符合排序 (c) 故意打不存在航線走到空結果畫面。`npx playwright test` 一鍵執行，日後每次改版必跑
+4. **Playwright E2E**（請 Claude Code 寫）：三條測試——(a) 搜尋 TPE→NRT 出現 ≥1 張卡片 (b) 切換排序後首卡價格/時間符合排序 (c) 故意打不存在航線走到空結果畫面。`npx playwright test` 一鍵執行，日後每次改版必跑。
+   **【E2E 流量自律】**：(a)(b) 固定查追蹤航線＋排程已抓過的日期，讓測試打到快取而非真實資料源——E2E 每跑一輪都打 fast-flights，等於自己製造封鎖風險與 Amadeus 配額消耗；(c) 的「不存在航線」選 IATA 合法但無航班的組合（如 TPE→小型機場），驗證空結果而非參數錯誤
 5. UptimeRobot 打 `/api/health`（5 分鐘），此檢查內含輕量 DB 查詢，兼作 Supabase Free 防休眠保活
 
 **✅ 最終驗收（=第 0 章成功標準＋以下）**：
@@ -384,7 +395,10 @@ API base 由 NEXT_PUBLIC_API_URL 提供、token 由 NEXT_PUBLIC_API_TOKEN
 進入首頁 → 填條件 → 搜尋
   ├─ Loading（骨架屏＋文案輪播）
   ├─ 成功 → 結果列表（排序）＋價格趨勢摺疊區
-  │        └─ 點卡片 → Google Flights 深層連結（新分頁）
+  │        └─ 點卡片 → Google Flights「搜尋頁層級」連結（新分頁）
+  │           （fast-flights 不回傳單一航班的訂票 URL，只能組
+  │            origin/dest/date 的搜尋頁連結——按鈕文案寫
+  │            「在 Google Flights 查看」而非「訂票」，避免預期落差）
   ├─ 空結果 → 「查前一天／查後一天」快捷鈕
   └─ 失敗 → stale 快取（黃色警示）或錯誤畫面（重試鈕）
 ```
@@ -600,7 +614,7 @@ create table provider_status (
 
 ---
 
-*正文結束（現行版本 v2.3）。各 Phase 查核點通過後於本文件打勾並 git tag，作為專案完成紀錄。*
+*正文結束（現行版本 v2.4）。各 Phase 查核點通過後於本文件打勾並 git tag，作為專案完成紀錄。*
 
 ## 附錄 E：熔斷器審定規格（Fable 審定版，實作唯一依據）
 
@@ -674,6 +688,70 @@ curl -s -o /dev/null -w "%{http_code}" -X POST \
 
 ---
 
+## 附錄 G：情境風險清單（v2.4 Fable 推演版）
+
+> 推演方法：假想系統上線運行 30 天，逐層問「這裡會怎麼出事」。
+> 每條含：情境 → 後果 → 解法 → 落點（已修入哪個 Phase Prompt，或屬 Runbook/認知項）。
+> G1–G4 是本輪發現的**規格級問題**（不修就會上線出事），G5 起為次級風險與認知校準。
+
+### 🔴 規格級（已修入對應 Prompt）
+
+**G1. price_history 被非基準查詢污染**
+- 情境：使用者查一次 TPE-NRT 商務艙 2 人 → Phase 2 原規格「每次成功搜尋 upsert 當日最低價」把商務艙價寫進趨勢。
+- 後果：趨勢圖出現無法解釋的尖峰，價格歷史（本案核心價值之一）失真且不可逆。
+- 解法：只有 `adults=1 & cabin=economy` 的查詢寫 history；其他查詢照常回結果但不落歷史。
+- 落點：已修入 Phase 2 Prompt【history 基準鐵則】。
+
+**G2. 空結果被誤判為失敗**
+- 情境：查冷門航線，fast-flights 正常回應但 0 筆航班。若切換鏈把「空」當「敗」→ 每次都 failover 到 Amadeus；連查 3 次還會誤觸熔斷 OPEN。
+- 後果：白燒 Amadeus 配額＋熔斷器記錄假失敗，health 顯示假故障。
+- 解法：空結果 = 成功，直接回傳（前端本就有查前後日 UI）；只有例外/逾時才是失敗（與附錄 E §E2 一致）。
+- 落點：已修入 Phase 2 Prompt【空結果語意】。
+
+**G3. Amadeus 配額計數的 crash 窗口**
+- 情境：後端打完 Amadeus、寫 monthly_calls +1 之前容器重啟 → 漏計。長期累積 + 90% 閾值形同虛設，而 production 已綁帳單，超額是**真實費用**。
+- 解法：先 +1 落庫、再發請求——寧可多計不可少計。DB 寫入失敗時本次直接跳過 Amadeus（fail-closed，回 stale 也不冒扣款風險）。
+- 落點：已修入 Phase 3 Prompt【計數順序鐵則】。
+
+**G4. 驗收與 E2E 流量自傷**
+- 情境：Phase 5 每輪 E2E、Lighthouse 重跑、以及你自己的反覆手動驗收，全部打真實 fast-flights → 開發驗收期的請求密度遠高於日常，**最可能被封鎖的時刻正是驗收當天**。
+- 解法：E2E 固定查「排程已抓過的追蹤航線＋日期」讓流量落在快取層；手動驗收也優先用同一組條件；真要驗即時查詢，一天內限少數幾次。
+- 落點：已修入 Phase 5 步驟 4【E2E 流量自律】。
+
+### 🟡 設計澄清（已修入 Prompt 或線框）
+
+**G5. 「深層連結」實際上做不到**
+fast-flights 不回傳單一航班的訂票 URL，能組的只有 origin/dest/date 的 Google Flights 搜尋頁連結。已修正 4.2 使用者流程：按鈕語意改「在 Google Flights 查看」，避免使用者預期「點了直接訂這班」的落差。Amadeus 結果同理——`booking_hint` 只給航空公司名，連結仍指 Google Flights 搜尋頁。
+
+**G6. 跨源價格趨勢跳動**
+Google 與 Amadeus 的報價基準不同（Amadeus 常見「from」價、LCC 覆蓋較弱），fast-flights 被熔斷期間的 history 點位會系統性偏移，趨勢圖出現階梯。解法：history 已記 source（schema 本有），前端趨勢圖以顏色/點型區分 source，讓跳動「可解釋」即可——個人專案不必做跨源校準。
+
+**G7. Amadeus 結果「看起來變貴」不是 bug**
+TPE-NRT/FUK 是 LCC 重鎮（樂桃、虎航、酷航），Amadeus Self-Service 對 LCC 覆蓋有限。熔斷切換後最低價可能顯著上升——這是資料源特性，不是程式錯誤。認知項：寫進 Runbook 心智，前端資料源標註列（4.3 已有）就是為此存在。
+
+### 🟢 次級風險（Runbook / 認知項，不改 Prompt）
+
+**G8. 前後端契約漂移（雙 AI 工具開發）**：Phase 3 完成後把 FastAPI 自動生成的 `/openapi.json` 存進 repo（`/docs/openapi.json`），Phase 4 Prompt 連同 UX 文件一起餵給前端 AI 當唯一契約；後端改介面必須重新輸出此檔。成本一分鐘，防掉「前端猜欄位名」整類 bug。
+
+**G9. slowapi 在反向代理後的 IP 判定**：Zeabur 前有代理時，取 `request.client.host` 可能全是代理 IP（所有人共用一個 bucket、你自己把自己 429），改信 `X-Forwarded-For` 又可偽造。個人專案解法：取 XFF 最左值即可，接受可偽造——rate limit 的真正底線是 Amadeus 90% 停用（防線 6），不是這裡。Phase 5 部署後實測一次：從兩個不同網路打，確認 429 是分開計的。
+
+**G10. `NEXT_PUBLIC_*` 是建置期烘焙**：換 API token 不是改 Cloudflare Pages 環境變數就生效——必須觸發前端重新 build。Runbook 認知項：輪替 token 的正確順序 = 後端先「同時接受新舊」→ 前端重建 → 後端撤舊。個人專案可簡化為「換 token 時接受幾分鐘中斷」，但要知道有這回事。
+
+**G11. mock 測試與上游現實漂移**：pytest 全 mock，fast-flights 上游改版後測試照樣全綠。解法：加一支 `scripts/live_smoke.py`（真打一次 TPE-NRT、驗欄位齊全），**不進 CI**，每月維護（§5.4）時手動跑，兼作 fast-flights 健康檢查。
+
+**G12. 公開 health 的資訊洩漏**：`/api/health` 免 token，卻要顯示熔斷狀態、配額用量、throttled——這些是內部運營資訊。個人專案風險低，但舉手之勞：公開版只回 `{"status":"ok","db":true}`（夠 UptimeRobot 用），帶 token 才回完整 provider 細節。Phase 3 實作時順手做。
+
+**G13. fast-flights 價格是字串**：上游回傳如 `"NT$8,432"` 的顯示字串，需解析出數值＋從符號推斷幣別。解析失敗（新幣別符號、格式變動）應讓該筆航班標記 price=null 進 log，而非整個查詢拋例外觸發熔斷——單筆解析失敗不是資料源失敗。Phase 1 實作時的防禦性細節。
+
+**G14. 快取擊穿（同 key 併發 miss）**：兩個分頁同時查同一條件都未命中 → 都打 provider。Semaphore(1) 已讓後者排隊，等到時前者多半已寫入快取，但仍會多打一次。個人使用量下**接受即可**，不值得為此加 per-key lock；若日後多人使用再處理。
+
+### 推演後的總體判斷
+
+架構本體（四層鏈＋熔斷＋stale）經得起推演，沒有需要重新設計的部分。本輪修正全是「規格邊界」問題——空結果、非基準查詢、計數時序、驗收流量——共同特徵是**單元測試測不出來、要靠情境推演或上線才會暴露**。G1–G4 修入 Prompt 後，剩餘項目按落點處理即可，不影響 4–5 天工時估計。
+
+---
+
 *v2.1 修訂：原兩個人工把關點已分別由附錄 E（預審定規格）與附錄 F（機械化閘門）取代。*
 *v2.2 修訂：proxy 降為純選配，新增 §5.5 零 Proxy 生存策略。*
 *v2.3 修訂（技術審查）：修訂總覽 #14–#18——async 阻塞防呆、schema 一致化、排程冪等補跑、health 保活實測、防線措辭校準與 IP 風險誠實補述。附錄 E/F 規格本體不變。*
+*v2.4 修訂（情境推演）：修訂總覽 #19–#20——新增附錄 G 十四條情境風險，G1–G4 規格級問題已修入 Phase 2/3/5 Prompt 與 4.2 流程。附錄 E/F 規格本體不變。*
