@@ -4,15 +4,20 @@ import re
 from contextlib import asynccontextmanager
 from datetime import date as DateType
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from db import client as db_client
 from db import repository as repo
 from providers.amadeus_provider import AmadeusProvider
 from providers.fast_flights_provider import FastFlightsProvider
 from services.cached_search import CachedSearch
+from services.circuit_breaker import CircuitBreaker
 from services.search_chain import AllProvidersFailed, SearchChain
 
 logger = logging.getLogger(__name__)
@@ -21,21 +26,52 @@ _fast_flights = FastFlightsProvider()
 _amadeus = AmadeusProvider()
 _chain = SearchChain([_fast_flights, _amadeus])
 _cached_search: CachedSearch | None = None
+_circuit_breakers: dict[str, CircuitBreaker] = {}
+_scheduler = None
+
+_limiter = Limiter(key_func=get_remote_address, default_limits=["20/minute"])
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _cached_search
+    global _cached_search, _circuit_breakers, _chain, _scheduler
+
     if os.getenv("SUPABASE_URL"):
         db = await db_client.get_client()
+
+        # Init circuit breakers (E6: load persisted state)
+        ff_cb = CircuitBreaker("fast_flights")
+        am_cb = CircuitBreaker("amadeus")
+        ff_cb.set_db(db)
+        am_cb.set_db(db)
+        await ff_cb.load_from_db()
+        await am_cb.load_from_db()
+        _circuit_breakers = {"fast_flights": ff_cb, "amadeus": am_cb}
+
+        # Give providers DB access for quota and throttle tracking
+        _fast_flights.set_db(db)
+        _amadeus.set_db(db)
+
+        _chain = SearchChain([_fast_flights, _amadeus], circuit_breakers=_circuit_breakers)
         _cached_search = CachedSearch(_chain, db)
-        logger.info("CachedSearch ready")
+
+        # Start daily price scheduler
+        from services.scheduler import create_scheduler
+        _scheduler = create_scheduler(_cached_search, db)
+        _scheduler.start()
+        logger.info("CachedSearch + CircuitBreakers + Scheduler ready")
     else:
         logger.warning("SUPABASE_URL not set — running without cache (Phase 1 mode)")
+
     yield
+
+    if _scheduler is not None and _scheduler.running:
+        _scheduler.shutdown(wait=False)
 
 
 app = FastAPI(title="Flight Search API", lifespan=lifespan)
+app.state.limiter = _limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
@@ -43,7 +79,7 @@ app.add_middleware(
     allow_origins=_allowed_origins,
     allow_credentials=False,
     allow_methods=["GET"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-API-Token"],
 )
 
 _IATA_RE = re.compile(r"^[A-Z]{3}$")
@@ -56,10 +92,28 @@ class ErrorDetail(BaseModel):
     retryable: bool
 
 
+@app.middleware("http")
+async def api_token_middleware(request: Request, call_next):
+    required_token = os.getenv("API_TOKEN", "")
+    # /api/health is exempt so monitoring services don't need a token
+    if required_token and request.url.path.startswith("/api/") and request.url.path != "/api/health":
+        provided = request.headers.get("X-API-Token", "")
+        if provided != required_token:
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": {
+                        "code": "FORBIDDEN",
+                        "message": "Invalid or missing X-API-Token header",
+                        "retryable": False,
+                    }
+                },
+            )
+    return await call_next(request)
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
-    from fastapi.responses import JSONResponse
-
     retryable = not isinstance(exc, (ValueError, HTTPException))
     return JSONResponse(
         status_code=500,
@@ -84,14 +138,22 @@ async def health():
         "status": "ok",
         "db": db_ok,
         "providers": {
-            "fast_flights": {"reachable": True},
+            "fast_flights": {
+                "reachable": True,
+                "throttled": _fast_flights._throttled,
+            },
             "amadeus": {"reachable": amadeus_configured},
+        },
+        "circuit_breakers": {
+            name: cb.current_state() for name, cb in _circuit_breakers.items()
         },
     }
 
 
 @app.get("/api/search")
+@_limiter.limit("20/minute")
 async def search_flights(
+    request: Request,
     origin: str = Query(..., description="IATA origin airport code"),
     dest: str = Query(..., description="IATA destination airport code"),
     date: str = Query(..., description="Departure date YYYY-MM-DD"),

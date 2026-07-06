@@ -1,4 +1,4 @@
-"""All Supabase DB operations for Phase 2."""
+"""All Supabase DB operations for Phase 2+3."""
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -118,6 +118,68 @@ async def get_price_history(
         .execute()
     )
     return resp.data
+
+
+# ── Phase 3: scheduler + quota ────────────────────────────────────────────────
+
+async def get_tracked_routes(db: AsyncClient) -> list[str]:
+    resp = await db.table("tracked_routes").select("route").eq("enabled", True).execute()
+    return [r["route"] for r in resp.data]
+
+
+async def has_history_today(db: AsyncClient, route: str, date: str) -> bool:
+    resp = (
+        await db.table("price_history")
+        .select("id")
+        .eq("route", route)
+        .eq("date", date)
+        .limit(1)
+        .execute()
+    )
+    return bool(resp.data)
+
+
+async def get_monthly_calls(db: AsyncClient, provider: str, month_key: str) -> int:
+    resp = (
+        await db.table("provider_status")
+        .select("monthly_calls,month_key")
+        .eq("provider", provider)
+        .limit(1)
+        .execute()
+    )
+    if not resp.data or resp.data[0].get("month_key") != month_key:
+        return 0
+    return resp.data[0].get("monthly_calls", 0)
+
+
+async def increment_monthly_calls(db: AsyncClient, provider: str, month_key: str) -> int:
+    """Increment monthly_calls and return new count; resets if month changed."""
+    resp = (
+        await db.table("provider_status")
+        .select("monthly_calls,month_key")
+        .eq("provider", provider)
+        .limit(1)
+        .execute()
+    )
+    if resp.data and resp.data[0].get("month_key") == month_key:
+        new_count = resp.data[0].get("monthly_calls", 0) + 1
+    else:
+        new_count = 1
+    await db.table("provider_status").upsert(
+        {"provider": provider, "monthly_calls": new_count, "month_key": month_key},
+        on_conflict="provider",
+    ).execute()
+    return new_count
+
+
+async def set_throttled(db: AsyncClient, provider: str, throttled: bool) -> None:
+    try:
+        await db.table("provider_status").upsert(
+            {"provider": provider, "throttled": throttled},
+            on_conflict="provider",
+        ).execute()
+    except Exception as exc:
+        logger.warning("set_throttled failed (non-fatal): %s", exc)
 
 
 # ── health / Postgres liveness ────────────────────────────────────────────────
