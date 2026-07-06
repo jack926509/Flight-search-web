@@ -21,8 +21,12 @@ _CABIN_MAP = {
 
 _ISO_DURATION_RE = re.compile(r"PT(?:(\d+)H)?(?:(\d+)M)?")
 
-_AMADEUS_MONTHLY_LIMIT = int(os.getenv("AMADEUS_MONTHLY_LIMIT", "2000"))
-_AMADEUS_SOFT_LIMIT = int(_AMADEUS_MONTHLY_LIMIT * 0.9)  # 90% threshold
+# 附錄 B 正式名稱為 AMADEUS_MONTHLY_QUOTA（保留舊名 AMADEUS_MONTHLY_LIMIT 相容）
+_AMADEUS_MONTHLY_QUOTA = int(
+    os.getenv("AMADEUS_MONTHLY_QUOTA") or os.getenv("AMADEUS_MONTHLY_LIMIT") or "2000"
+)
+_AMADEUS_SOFT_LIMIT = int(_AMADEUS_MONTHLY_QUOTA * 0.9)  # 90% threshold
+_FX_USD_TWD = float(os.getenv("FX_USD_TWD", "32.0"))  # 幣別兜底匯率（附錄 B）
 
 
 class QuotaExceeded(Exception):
@@ -142,6 +146,21 @@ class AmadeusProvider(FlightProvider):
                 segments = itinerary["segments"]
                 first_seg = segments[0]
                 last_seg = segments[-1]
+
+                # FX 兜底：Amadeus test 環境可能忽略 currencyCode 而回 USD/EUR
+                price = float(offer["price"]["total"])
+                offer_currency = offer["price"].get("currency", "TWD")
+                original_currency: str | None = None
+                if offer_currency != "TWD":
+                    if offer_currency == "USD":
+                        price = price * _FX_USD_TWD
+                        original_currency = "USD"
+                    else:
+                        logger.warning(
+                            "amadeus: offer in %s with no FX rate — skipping", offer_currency
+                        )
+                        continue
+
                 flights.append(Flight(
                     airline=first_seg["carrierCode"],
                     flight_no=f"{first_seg['carrierCode']}{first_seg['number']}",
@@ -149,8 +168,9 @@ class AmadeusProvider(FlightProvider):
                     arrive_time=last_seg["arrival"]["at"][11:16],
                     duration_min=_parse_iso_duration(itinerary["duration"]),
                     stops=len(segments) - 1,
-                    price=round(float(offer["price"]["total"])),
+                    price=round(price),
                     currency="TWD",
+                    original_currency=original_currency,
                     booking_hint=_booking_url(origin, dest, date),
                 ))
             except Exception as exc:
