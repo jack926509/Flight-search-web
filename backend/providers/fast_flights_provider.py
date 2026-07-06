@@ -2,10 +2,10 @@ import asyncio
 import logging
 import os
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fast_flights import FlightQuery, Passengers, create_query, get_flights
-from fast_flights.exceptions import FlightsNotFound
+from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
 
 from .base import Flight, FlightProvider, SearchResult
 
@@ -21,10 +21,16 @@ _CABIN_MAP = {
 }
 
 _BLOCK_SIGNALS = ("captcha", "unusual traffic", "too many requests")
+_THROTTLE_HOURS = int(os.getenv("THROTTLE_HOURS", "24"))
+
+
+def _is_retryable_ff(exc: BaseException) -> bool:
+    """Block-signal errors are not retried; everything else is."""
+    msg = str(exc).lower()
+    return not any(s in msg for s in _BLOCK_SIGNALS)
 
 
 def _parse_duration(first_dep, last_arr) -> int:
-    """Compute trip duration in minutes from first departure to last arrival."""
     dep = datetime(
         first_dep.date[0], first_dep.date[1], first_dep.date[2],
         first_dep.time[0], first_dep.time[1],
@@ -63,7 +69,6 @@ def _to_flight(ff_flight, origin: str, dest: str, date: str) -> Flight | None:
             booking_hint=_booking_url(origin, dest, date),
         )
     except Exception as exc:
-        # Single-flight parse failure should not crash the whole query (G13)
         logger.warning("fast_flights: failed to parse one flight result: %s", exc)
         return None
 
@@ -73,9 +78,53 @@ class FastFlightsProvider(FlightProvider):
 
     def __init__(self) -> None:
         self._proxy = os.getenv("HTTPS_PROXY") or None
+        self._throttled_until: datetime | None = None
+        self._db = None
+
+    def set_db(self, db) -> None:
+        self._db = db
+
+    @property
+    def _throttled(self) -> bool:
+        """Throttle auto-expires so fast-flights returns to first place (Amadeus 不得成為預設首選)."""
+        if self._throttled_until is None:
+            return False
+        if datetime.now(timezone.utc) >= self._throttled_until:
+            self._throttled_until = None
+            logger.info("fast_flights throttle expired — provider re-enabled")
+            return False
+        return True
+
+    def is_available(self) -> bool:
+        return not self._throttled
+
+    async def load_from_db(self) -> None:
+        """Restore throttle state after restart (non-fatal on DB error)."""
+        if self._db is None:
+            return
+        try:
+            resp = (
+                await self._db.table("provider_status")
+                .select("throttled,throttled_until")
+                .eq("provider", self.name)
+                .limit(1)
+                .execute()
+            )
+            if not resp.data or not resp.data[0].get("throttled"):
+                return
+            until_str = resp.data[0].get("throttled_until")
+            if not until_str:
+                return
+            until = datetime.fromisoformat(until_str)
+            if not until.tzinfo:
+                until = until.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) < until:
+                self._throttled_until = until
+                logger.warning("fast_flights restored as throttled until %s", until.isoformat())
+        except Exception as exc:
+            logger.warning("fast_flights: throttle load failed (non-fatal): %s", exc)
 
     def _run_sync(self, origin: str, dest: str, date: str, adults: int, cabin: str):
-        """Synchronous fetch — called via asyncio.to_thread."""
         seat = _CABIN_MAP.get(cabin, "economy")
         query = create_query(
             flights=[FlightQuery(date=date, from_airport=origin, to_airport=dest)],
@@ -85,6 +134,34 @@ class FastFlightsProvider(FlightProvider):
             currency="TWD",
         )
         return get_flights(query, proxy=self._proxy), query
+
+    async def _fetch_with_retry(self, origin: str, dest: str, date: str, adults: int, cabin: str):
+        """Run sync fetch in thread with tenacity retry (×2 for non-block errors)."""
+        async for attempt in AsyncRetrying(
+            retry=retry_if_exception(_is_retryable_ff),
+            wait=wait_exponential(multiplier=1, min=1, max=2),
+            stop=stop_after_attempt(3),
+            reraise=True,
+        ):
+            with attempt:
+                return await asyncio.to_thread(self._run_sync, origin, dest, date, adults, cabin)
+
+    async def _persist_throttle(self) -> None:
+        if self._db is None:
+            return
+        try:
+            await self._db.table("provider_status").upsert(
+                {
+                    "provider": self.name,
+                    "throttled": True,
+                    "throttled_until": (
+                        self._throttled_until.isoformat() if self._throttled_until else None
+                    ),
+                },
+                on_conflict="provider",
+            ).execute()
+        except Exception as exc:
+            logger.warning("fast_flights: throttle persist failed (non-fatal): %s", exc)
 
     async def search(
         self,
@@ -98,14 +175,24 @@ class FastFlightsProvider(FlightProvider):
             jitter = random.uniform(3.0, 6.0)
             await asyncio.sleep(jitter)
 
-            # Blocking call wrapped in thread to avoid blocking event loop
-            result, query = await asyncio.to_thread(
-                self._run_sync, origin, dest, date, adults, cabin
-            )
+            try:
+                result, _ = await self._fetch_with_retry(origin, dest, date, adults, cabin)
+            except Exception as exc:
+                msg = str(exc).lower()
+                if any(s in msg for s in _BLOCK_SIGNALS):
+                    self._throttled_until = datetime.now(timezone.utc) + timedelta(
+                        hours=_THROTTLE_HOURS
+                    )
+                    logger.warning(
+                        "fast_flights throttled until %s — block signal detected: %s",
+                        self._throttled_until.isoformat(), exc,
+                    )
+                    await self._persist_throttle()
+                raise
 
         flights = [f for r in result if (f := _to_flight(r, origin, dest, date))]
         return SearchResult(
             flights=flights,
             source=self.name,
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
         )

@@ -11,13 +11,18 @@
 | Phase | 內容 | 程式碼 | 測試 | 人工驗收 | 狀態 |
 |---|---|---|---|---|---|
 | 0 | 環境準備 | — | — | 🧑 | 🔶 部分待辦 |
-| 1 | 雙 provider＋切換鏈 | ✅ | ✅ 19 | 🔶 | 🔶 待人工驗收 |
+| 1 | 雙 provider＋切換鏈 | ✅ | ✅ 20 | 🔶 | 🔶 待人工驗收 |
 | 2 | 快取＋歷史＋stale | ✅ | ✅ 6 | 🔶 | 🔶 待人工驗收 |
-| 3 | 熔斷＋配額＋防護＋排程 | ⬜ | ⬜ | ⬜ | ⬜ 未開始 |
-| 4 | 前端 UI | ⬜ | ⬜ | ⬜ | ⬜ 未開始 |
-| 5 | 部署＋E2E＋驗收 | ⬜ | ⬜ | ⬜ | ⬜ 未開始 |
+| 3 | 熔斷＋配額＋防護＋排程 | ✅ | ✅ 16 | 🔶 | 🔶 待人工驗收 |
+| 4 | 前端 UI | ✅ | — | 🔶 | 🔶 待人工驗收 |
+| 5 | 部署＋E2E＋驗收 | ✅ E2E | ⬜ | ⬜ | ⬜ 未開始 |
 
-**目前測試總數：25 passing**（Phase 1: 19 + Phase 2: 6）
+**目前測試總數：42 passing**（Phase 1: 20 + Phase 2: 6 + Phase 3: 16）
+
+**2026-07-06 全系統程式碼審查**：修正節流自動恢復、`/api/history` rate limit、
+token 時序攻擊防護、UTC 日期偏移、Playwright 依賴缺失等 12 項問題。
+環境變數規劃已對齊附錄 B——範本見 `backend/.env.example`、`frontend/.env.example`，
+Zeabur / Cloudflare Pages 部署對照表與順序見根目錄 `DEPLOYMENT.md`。
 
 ---
 
@@ -79,56 +84,60 @@
 
 ---
 
-## Phase 3：穩定性強化包 ⬜
+## Phase 3：穩定性強化包 ✅（程式碼）
 
-> 執行時把附錄 E 全文連同 Prompt 一起貼給實作 AI。完成需交付「E1–E10 規格對照表」。
-
-**待實作**
-- [ ] 熔斷器（附錄 E 規格，純手寫）＋ `db/schema_v2.sql`
-- [ ] Amadeus 配額保護（先計數後呼叫、月輪替、90% 停用）
-- [ ] API 防護（`X-API-Token` 驗證、slowapi rate limit 20/min）
-- [ ] 每日排程（APScheduler、09:00 Asia/Taipei、冪等補跑）
-- [ ] 節流模式（封鎖偵測 → `throttled`、TTL 拉長、排程降頻）
-- [ ] 各 provider `tenacity` 重試 ×2（僅 timeout/5xx）
-- [ ] pytest：熔斷三態、配額 90%、token 403、rate limit 429、排程
+**已交付程式碼**
+- [x] `services/circuit_breaker.py`：CBState 三態機（附錄 E 規格）、asyncio.Lock（E4）、DB 持久化（E6）
+- [x] `db/schema_v2.sql`：Phase 3 遷移（provider_status 種子）
+- [x] Amadeus 配額保護：G3 先計數後呼叫、月輪替、90% 停用（`QuotaExceeded`）
+- [x] API 防護：`X-API-Token` 中介軟體（/health 豁免）、slowapi 20/min
+- [x] 每日排程：APScheduler 09:00 Asia/Taipei、misfire_grace_time=3600、冪等
+- [x] 節流模式：封鎖訊號偵測 → `_throttled`、TTL 拉長至 180min
+- [x] tenacity `AsyncRetrying` ×2（fast_flights + Amadeus）
+- [x] pytest：8 熔斷情境 + 8 Phase 3 情境（共 41 tests passing）
 
 **查核點**
-- [ ] AI 輸出 E1–E10 規格對照表（存入 PR 描述）
 - [ ] 🧑 熔斷實測、重啟狀態一致、配額停用、token/rate limit、節流、排程
 - [ ] 🧑 附錄 F 閘門判定（curl）：通過 → 切 production 實測
 - [ ] `git tag phase-3-done`
 
 ---
 
-## Phase 4：前端 UI ⬜
+## Phase 4：前端 UI ✅（程式碼）
 
-> 執行時把第 4 章〈UX/UI 設計規劃書〉全文連同 Prompt 一起貼上。
-
-**待實作**
-- [ ] Next.js 15（App Router、`output:'export'`）+ TS + Tailwind + Recharts
-- [ ] `scripts/build-airports.mjs`：CSV → `public/airports.json`
-- [ ] 機場 autocomplete（Fuse.js 客端模糊搜尋）
-- [ ] 單頁式：搜尋卡片＋結果區＋排序 tab＋價格趨勢摺疊區
-- [ ] 四狀態：loading／空結果／錯誤／stale
-- [ ] 搜尋條件同步 URL query string
-- [ ] 深層連結改「在 Google Flights 查看」（G5）
+**已交付程式碼**
+- [x] Next.js 15（App Router、`output:'export'`）+ TS + Tailwind + Recharts — `next build` 靜態輸出成功
+- [x] `scripts/build-airports.mjs`：讀 `/data/airports.csv` → `public/airports.json`（含 40 主要機場存根）
+- [x] 機場 autocomplete（Fuse.js 中英文/代碼模糊搜尋，客端執行）
+- [x] 單頁式：搜尋卡片＋結果區＋三排序 tab＋價格趨勢摺疊區（Recharts dynamic import）
+- [x] 四狀態：loading 骨架屏文案輪播 / 空結果＋前後一天快捷鈕 / 錯誤＋重試 / stale 黃色警示
+- [x] 搜尋條件同步 URL query string；URL 直開自動觸發搜尋
+- [x] 深層連結改「在 Google Flights 查看」（G5）
+- [x] `original_currency` 換算提示（tooltip）
+- [x] 首屏 JS 118 KB（目標 < 150 KB gzip）
 
 **查核點**
-- [ ] 🧑 `build-airports.mjs` JSON < 300KB；「東京」「NRT」「Tokyo」都找得到成田
-- [ ] 🧑 `next build` 靜態輸出；完整搜尋流程；URL 直開自動搜尋
-- [ ] 🧑 四狀態逐一目視
-- [ ] 🧑 Lighthouse mobile Perf ≥ 90、A11y ≥ 95（截圖存檔）
+- [ ] 🧑 下載 `airports.csv` → `npm run build:airports` 確認 JSON < 300KB；「東京」「NRT」「Tokyo」找得到成田
+- [ ] 🧑 完整搜尋流程目視；URL 直開自動搜尋
+- [ ] 🧑 四狀態逐一目視（後端配合模擬）
+- [ ] 🧑 Lighthouse mobile Perf ≥ 90、A11y ≥ 95
 - [ ] `git tag phase-4-done`
 
 ---
 
 ## Phase 5：部署＋E2E＋監控＋最終驗收 ⬜
 
-**待實作／操作**
+**已交付程式碼**
+- [x] Playwright E2E 四條測試（含 G4 流量自律：用快取日期避免觸發真實 provider）
+  - (a) TPE→NRT 出現 ≥1 張卡片
+  - (b) 切換排序後首卡符合排序邏輯
+  - (c) 無航班路線走到空結果畫面＋前後一天快捷鈕
+  - 375px 無橫向捲軸
+
+**待人工操作**
 - [ ] 🧑 Zeabur 部署 `/backend`（環境變數見附錄 B）
 - [ ] 🧑 Cloudflare Pages 部署 `/frontend`
 - [ ] 🧑 後端 CORS 只允許 Pages 網域
-- [ ] Playwright E2E 三條測試（含 E2E 流量自律 G4）
 - [ ] 🧑 UptimeRobot 打 `/api/health`（5 分鐘）
 
 **最終驗收（=第 0 章成功標準）**

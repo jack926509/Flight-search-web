@@ -17,6 +17,12 @@ class CachedSearch:
         self._db = db
 
     def _ttl(self) -> int:
+        """Use longer TTL when throttled (§5.5) — auto-detected or forced via THROTTLE_MODE=on."""
+        if os.getenv("THROTTLE_MODE", "off").strip().lower() == "on":
+            return int(os.getenv("CACHE_TTL_THROTTLED_MINUTES", "180"))
+        providers = getattr(self._chain, "_providers", [])
+        if any(getattr(p, "_throttled", False) for p in providers):
+            return int(os.getenv("CACHE_TTL_THROTTLED_MINUTES", "180"))
         return int(os.getenv("CACHE_TTL_MINUTES", "45"))
 
     @staticmethod

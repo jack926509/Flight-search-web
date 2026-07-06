@@ -128,3 +128,39 @@ async def test_amadeus_unconfigured_raises():
 
     with pytest.raises(RuntimeError, match="credentials"):
         await provider.search("TPE", "NRT", "2026-10-01")
+
+
+@pytest.mark.asyncio
+async def test_amadeus_usd_offer_converted_with_fx_fallback():
+    """FX 兜底：test 環境回 USD 時以 FX_USD_TWD 換算並標 original_currency。"""
+    from unittest.mock import AsyncMock
+    from providers.amadeus_provider import AmadeusProvider
+
+    provider = AmadeusProvider()
+    provider._api_key = "KEY"
+    provider._api_secret = "SECRET"
+    provider._token = "tok"
+    provider._token_expires_at = 9999999999.0
+
+    body = _make_amadeus_response()
+    body["data"][0]["price"] = {"total": "400.00", "currency": "USD"}
+
+    mock_resp = MagicMock()
+    mock_resp.json.return_value = body
+    mock_resp.raise_for_status = MagicMock()
+
+    with patch("providers.amadeus_provider.httpx.AsyncClient") as mock_client_cls, \
+         patch("providers.amadeus_provider._FX_USD_TWD", 32.0):
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client_cls.return_value = mock_client
+
+        result = await provider.search("TPE", "NRT", "2026-10-01")
+
+    assert len(result.flights) == 1
+    f = result.flights[0]
+    assert f.currency == "TWD"
+    assert f.original_currency == "USD"
+    assert f.price == 12800  # 400 * 32.0

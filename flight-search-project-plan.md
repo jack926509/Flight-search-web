@@ -581,12 +581,16 @@ create table provider_status (
 | `AMADEUS_MONTHLY_QUOTA` | Zeabur | 依後台實際免費額度填 |
 | `API_TOKEN` | Zeabur | 後端驗證用 |
 | `CACHE_TTL_MINUTES` | Zeabur | 預設 45 |
+| `CACHE_TTL_THROTTLED_MINUTES` | Zeabur | 節流模式快取 TTL，預設 180 |
+| `THROTTLE_HOURS` | Zeabur | 封鎖訊號後自動節流時長，到期自動恢復，預設 24 |
 | `CB_COOLDOWN_SECONDS` | Zeabur | 預設 300 |
 | `HTTPS_PROXY` | Zeabur | 純選配鉤子，預設留空（§5.5 三招無效才考慮） |
 | `THROTTLE_MODE` | Zeabur | `on` 時啟動節流模式（§5.5），預設 off |
 | `FX_USD_TWD` | Zeabur | 幣別兜底匯率 |
 | `ALLOWED_ORIGINS` | Zeabur | Pages 網域 |
-| `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_TOKEN` | Cloudflare Pages | 前端 |
+| `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_TOKEN` | Cloudflare Pages | 前端（build 時打包，改值需重 build） |
+
+> 完整說明與部署順序見 repo 根目錄 `DEPLOYMENT.md`；範本見 `backend/.env.example`、`frontend/.env.example`。
 
 ## 附錄 C：時程
 

@@ -39,3 +39,11 @@ class FlightProvider(ABC):
     ) -> SearchResult:
         """Search flights. Raises on provider failure; empty flights list is NOT an error."""
         ...
+
+    def is_available(self) -> bool:
+        """Return False when throttled; search_chain skips unavailable providers."""
+        return True
+
+    def set_db(self, db) -> None:
+        """Inject DB client after lifespan init for quota/throttle persistence."""
+        pass
