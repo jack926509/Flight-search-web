@@ -186,5 +186,5 @@ class AmadeusProvider(FlightProvider):
         return SearchResult(
             flights=flights,
             source=self.name,
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
         )

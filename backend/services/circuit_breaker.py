@@ -146,19 +146,18 @@ class CircuitBreaker:
     async def _persist(self) -> None:
         if self._db is None:
             return
+        payload = {
+            "provider": self._name,
+            "state": self._state.value,
+            "failure_count": self._failure_count,
+            "opened_at": self._opened_at.isoformat() if self._opened_at else None,
+        }
+        # Only touch last_success_at on success — a failure must not wipe it to NULL
+        if self._state == CBState.CLOSED and self._failure_count == 0:
+            payload["last_success_at"] = datetime.now(_UTC).isoformat()
         try:
             await self._db.table("provider_status").upsert(
-                {
-                    "provider": self._name,
-                    "state": self._state.value,
-                    "failure_count": self._failure_count,
-                    "opened_at": self._opened_at.isoformat() if self._opened_at else None,
-                    "last_success_at": (
-                        datetime.now(_UTC).isoformat()
-                        if self._state == CBState.CLOSED and self._failure_count == 0
-                        else None
-                    ),
-                },
+                payload,
                 on_conflict="provider",
             ).execute()
         except Exception as exc:

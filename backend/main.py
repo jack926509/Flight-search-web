@@ -1,6 +1,7 @@
 import logging
 import os
 import re
+import secrets
 from contextlib import asynccontextmanager
 from datetime import date as DateType
 
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
         # Give providers DB access for quota and throttle tracking
         _fast_flights.set_db(db)
         _amadeus.set_db(db)
+        await _fast_flights.load_from_db()  # restore throttle state after restart
 
         _chain = SearchChain([_fast_flights, _amadeus], circuit_breakers=_circuit_breakers)
         _cached_search = CachedSearch(_chain, db)
@@ -73,7 +75,7 @@ app = FastAPI(title="Flight Search API", lifespan=lifespan)
 app.state.limiter = _limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-_allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+_allowed_origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
@@ -98,7 +100,7 @@ async def api_token_middleware(request: Request, call_next):
     # /api/health is exempt so monitoring services don't need a token
     if required_token and request.url.path.startswith("/api/") and request.url.path != "/api/health":
         provided = request.headers.get("X-API-Token", "")
-        if provided != required_token:
+        if not secrets.compare_digest(provided, required_token):
             return JSONResponse(
                 status_code=403,
                 content={
@@ -114,10 +116,18 @@ async def api_token_middleware(request: Request, call_next):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
+    # Log details server-side; never leak internal error strings to clients
+    logger.exception("unhandled error on %s: %s", request.url.path, exc)
     retryable = not isinstance(exc, (ValueError, HTTPException))
     return JSONResponse(
         status_code=500,
-        content={"error": {"code": "INTERNAL_ERROR", "message": str(exc), "retryable": retryable}},
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Internal server error",
+                "retryable": retryable,
+            }
+        },
     )
 
 
@@ -193,7 +203,9 @@ async def search_flights(
 
 
 @app.get("/api/history")
+@_limiter.limit("20/minute")
 async def price_history(
+    request: Request,
     route: str = Query(..., description="Route in format AAA-BBB"),
     days: int = Query(default=90, ge=1, le=365),
 ):

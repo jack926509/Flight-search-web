@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:airports": "node scripts/build-airports.mjs"
+    "build:airports": "node scripts/build-airports.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "15.3.3",
@@ -16,6 +17,7 @@
     "fuse.js": "^7.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

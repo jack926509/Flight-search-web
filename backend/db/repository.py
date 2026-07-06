@@ -107,7 +107,6 @@ async def upsert_price_history(
 async def get_price_history(
     db: AsyncClient, route: str, days: int
 ) -> list[dict]:
-    from datetime import date as Date
     since = (datetime.now(_UTC) - timedelta(days=days)).date().isoformat()
     resp = (
         await db.table("price_history")

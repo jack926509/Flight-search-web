@@ -14,10 +14,11 @@ _TZ = ZoneInfo("Asia/Taipei")
 
 
 async def _fetch_route(route: str, cached_search, db) -> None:
-    from datetime import date as Date
+    from datetime import datetime
 
     origin, dest = route.split("-")
-    today = Date.today().isoformat()  # uses local date; container should be UTC-agnostic here
+    # Job fires at 09:00 Asia/Taipei — use the Taipei date, not the container's local date
+    today = datetime.now(_TZ).date().isoformat()
 
     if await repo.has_history_today(db, route, today):
         logger.info("scheduler: route=%s date=%s already fetched, skipping", route, today)

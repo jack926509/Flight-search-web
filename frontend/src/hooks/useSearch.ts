@@ -28,7 +28,10 @@ export function useSearch() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const today = new Date().toISOString().split("T")[0];
+  // Local date (not toISOString/UTC — in UTC+8 early morning that returns yesterday)
+  const now = new Date();
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const today = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 
   const [origin, setOrigin] = useState(searchParams.get("origin") || "TPE");
   const [dest, setDest] = useState(searchParams.get("dest") || "");
@@ -44,7 +47,8 @@ export function useSearch() {
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("price");
 
-  const abortRef = useRef<AbortController | null>(null);
+  // Monotonic id so a slow earlier response can't overwrite a newer one
+  const requestIdRef = useRef(0);
 
   const pushUrl = useCallback(
     (o: string, d: string, dt: string, a: number, c: string) => {
@@ -63,7 +67,7 @@ export function useSearch() {
   const doSearch = useCallback(
     async (o: string, d: string, dt: string, a: number, c: string) => {
       if (!o || !d || !dt) return;
-      abortRef.current?.abort();
+      const reqId = ++requestIdRef.current;
       setStatus("loading");
       setResult(null);
       setError(null);
@@ -71,6 +75,7 @@ export function useSearch() {
 
       try {
         const data = await searchFlights(o, d, dt, a, c);
+        if (reqId !== requestIdRef.current) return; // superseded by a newer search
         if (data.flights.length === 0) {
           setStatus("empty");
         } else if (data.stale) {
@@ -80,6 +85,7 @@ export function useSearch() {
         }
         setResult(data);
       } catch (e) {
+        if (reqId !== requestIdRef.current) return;
         setStatus("error");
         setError(e instanceof Error ? e.message : "查詢失敗");
       }
@@ -115,9 +121,11 @@ export function useSearch() {
   const retry = () => doSearch(origin, dest, date, adults, cabin);
 
   const goDate = (delta: number) => {
-    const d = new Date(date);
+    // Anchor at noon so the ±1-day shift never crosses a date line in any timezone
+    const d = new Date(`${date}T12:00:00`);
     d.setDate(d.getDate() + delta);
-    const newDate = d.toISOString().split("T")[0];
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const newDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     setDate(newDate);
     doSearch(origin, dest, newDate, adults, cabin);
   };

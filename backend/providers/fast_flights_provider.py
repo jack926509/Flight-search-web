@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fast_flights import FlightQuery, Passengers, create_query, get_flights
 from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait_exponential
@@ -21,6 +21,7 @@ _CABIN_MAP = {
 }
 
 _BLOCK_SIGNALS = ("captcha", "unusual traffic", "too many requests")
+_THROTTLE_HOURS = int(os.getenv("THROTTLE_HOURS", "24"))
 
 
 def _is_retryable_ff(exc: BaseException) -> bool:
@@ -77,14 +78,51 @@ class FastFlightsProvider(FlightProvider):
 
     def __init__(self) -> None:
         self._proxy = os.getenv("HTTPS_PROXY") or None
-        self._throttled: bool = False
+        self._throttled_until: datetime | None = None
         self._db = None
 
     def set_db(self, db) -> None:
         self._db = db
 
+    @property
+    def _throttled(self) -> bool:
+        """Throttle auto-expires so fast-flights returns to first place (Amadeus 不得成為預設首選)."""
+        if self._throttled_until is None:
+            return False
+        if datetime.now(timezone.utc) >= self._throttled_until:
+            self._throttled_until = None
+            logger.info("fast_flights throttle expired — provider re-enabled")
+            return False
+        return True
+
     def is_available(self) -> bool:
         return not self._throttled
+
+    async def load_from_db(self) -> None:
+        """Restore throttle state after restart (non-fatal on DB error)."""
+        if self._db is None:
+            return
+        try:
+            resp = (
+                await self._db.table("provider_status")
+                .select("throttled,throttled_until")
+                .eq("provider", self.name)
+                .limit(1)
+                .execute()
+            )
+            if not resp.data or not resp.data[0].get("throttled"):
+                return
+            until_str = resp.data[0].get("throttled_until")
+            if not until_str:
+                return
+            until = datetime.fromisoformat(until_str)
+            if not until.tzinfo:
+                until = until.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) < until:
+                self._throttled_until = until
+                logger.warning("fast_flights restored as throttled until %s", until.isoformat())
+        except Exception as exc:
+            logger.warning("fast_flights: throttle load failed (non-fatal): %s", exc)
 
     def _run_sync(self, origin: str, dest: str, date: str, adults: int, cabin: str):
         seat = _CABIN_MAP.get(cabin, "economy")
@@ -112,12 +150,13 @@ class FastFlightsProvider(FlightProvider):
         if self._db is None:
             return
         try:
-            from datetime import timezone
             await self._db.table("provider_status").upsert(
                 {
                     "provider": self.name,
                     "throttled": True,
-                    "throttled_until": (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat(),
+                    "throttled_until": (
+                        self._throttled_until.isoformat() if self._throttled_until else None
+                    ),
                 },
                 on_conflict="provider",
             ).execute()
@@ -141,9 +180,12 @@ class FastFlightsProvider(FlightProvider):
             except Exception as exc:
                 msg = str(exc).lower()
                 if any(s in msg for s in _BLOCK_SIGNALS):
-                    self._throttled = True
+                    self._throttled_until = datetime.now(timezone.utc) + timedelta(
+                        hours=_THROTTLE_HOURS
+                    )
                     logger.warning(
-                        "fast_flights throttled — block signal detected: %s", exc
+                        "fast_flights throttled until %s — block signal detected: %s",
+                        self._throttled_until.isoformat(), exc,
                     )
                     await self._persist_throttle()
                 raise
@@ -152,5 +194,5 @@ class FastFlightsProvider(FlightProvider):
         return SearchResult(
             flights=flights,
             source=self.name,
-            fetched_at=datetime.utcnow(),
+            fetched_at=datetime.now(timezone.utc),
         )
