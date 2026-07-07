@@ -46,6 +46,23 @@ MCP 端點（`https://mcp.kiwi.com/`，免金鑰、原生 TWD、已實測 TPE→
 rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）／
 查詢中 health 12ms 不阻塞／E2E chromium 4/4 綠。
 
+**2026-07-07 API 引用＋UX/UI 全面複審（第三輪）**：Kiwi 官方 MCP schema 逐欄比對
+（`flyFrom`/`flyTo`/`departureDate` dd/mm/yyyy/`cabinClass` M-W-C-F/`currency`）＋
+真實 TPE→NRT 呼叫驗證回傳欄位（15 筆、TWD、`segments[].carrier/flightNumber`
+與 parser 完全一致）。真瀏覽器截圖逐一目視 9 個畫面狀態，發現並修復 3 個問題：
+1. 🔴 **中文機場搜尋完全無效**——airports.json 3274 筆零中文，輸入「東京」
+   下拉不會出現。修復：`build-airports.mjs` 加入 105 個主要機場中文別名
+   （台日韓港澳中東南亞美加歐澳，繁簡並收），Fuse 搜尋鍵加 `zh`，下拉顯示
+   「東京（Narita）」格式；JSON 278.3 KB 仍低於 300 KB 上限。
+2. **前端 fetch 無逾時**——後端若掛住（非拒絕連線），使用者永遠停在骨架屏。
+   修復：`/api/search` 45s、`/api/history` 15s `AbortSignal.timeout` 兜底。
+3. **趨勢圖 fetch 拋錯未接**——斷網時 unhandled rejection。修復：try/catch
+   靜默回空陣列。
+目視確認畫面：首頁／中文 autocomplete（東京→HND+NRT）／loading 骨架屏／
+結果卡片＋排序／趨勢累積中／空結果＋前後一天鈕／錯誤＋重試＋狀態燈轉紅／
+手機 375px 首頁＋結果頁。E2E 4/4 綠（空結果路徑本輪起由 stub 真實觸發）、
+tsc 無錯、後端 43 tests 維持全綠。
+
 ---
 
 ## Phase 0：環境準備 🧑
@@ -139,9 +156,9 @@ rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）
 - [x] 首屏 JS 118 KB（目標 < 150 KB gzip）
 
 **查核點**
-- [x] 下載 `airports.csv` → `npm run build:airports`：JSON 275.7 KB（3274 機場，新增 `scheduled_service=yes` 過濾）；NRT/TPE/FUK/WAW 皆在；🧑 「東京」「Tokyo」中英文模糊搜尋待目視確認
-- [ ] 🧑 完整搜尋流程目視；URL 直開自動搜尋
-- [ ] 🧑 四狀態逐一目視（後端配合模擬）
+- [x] 下載 `airports.csv` → `npm run build:airports`：JSON 278.3 KB（3274 機場＋105 中文別名）；NRT/TPE/FUK/WAW 皆在；「東京」→HND+NRT 中文模糊搜尋已目視確認 ✓（2026-07-07 第三輪）
+- [x] 完整搜尋流程目視；URL 直開自動搜尋 ✓（2026-07-07 真瀏覽器截圖）
+- [x] 四狀態逐一目視 ✓（loading 骨架屏／結果卡片／空結果＋前後一天鈕／錯誤＋重試；stale 黃色警示由測試覆蓋，正式環境再目視）
 - [ ] 🧑 Lighthouse mobile Perf ≥ 90、A11y ≥ 95
 - [ ] `git tag phase-4-done`
 

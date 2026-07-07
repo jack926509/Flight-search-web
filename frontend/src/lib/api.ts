@@ -7,6 +7,8 @@ export interface Airport {
   name: string;
   city: string;
   country: string;
+  /** 中文別名（空白分隔，僅主要機場有） */
+  zh?: string;
 }
 
 export interface Flight {
@@ -55,9 +57,12 @@ export async function searchFlights(
   url.searchParams.set("adults", String(adults));
   url.searchParams.set("cabin", cabin);
 
+  // 後端最長路徑（fast-flights 3-8s + failover Kiwi ~10s + jitter）約 30s；
+  // 逾時不中斷就會永遠停在骨架屏，必須以 AbortController 兜底
   const resp = await fetch(url.toString(), {
     headers: authHeaders(),
     cache: "no-store",
+    signal: AbortSignal.timeout(45_000),
   });
 
   if (!resp.ok) {
@@ -80,13 +85,19 @@ export async function fetchPriceHistory(
   url.searchParams.set("route", route);
   url.searchParams.set("days", String(days));
 
-  const resp = await fetch(url.toString(), {
-    headers: authHeaders(),
-    cache: "no-store",
-  });
-  if (!resp.ok) return [];
-  const data = await resp.json();
-  return data.history ?? [];
+  // 趨勢圖是加值功能：任何錯誤（含逾時）都靜默回空陣列，不打斷主流程
+  try {
+    const resp = await fetch(url.toString(), {
+      headers: authHeaders(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.history ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export function sortFlights(flights: Flight[], by: SortKey): Flight[] {

@@ -25,7 +25,7 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
       .then((r) => r.json())
       .then((data: Airport[]) => {
         fuseRef.current = new Fuse(data, {
-          keys: ["iata", "name", "city", "country"],
+          keys: ["iata", "name", "city", "country", "zh"],
           threshold: 0.3,
           minMatchCharLength: 1,
           includeScore: true,
@@ -109,7 +109,7 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
             >
               <span className="font-bold text-[#0B5FFF] w-10 shrink-0">{apt.iata}</span>
               <span className="text-sm text-gray-700 truncate">
-                {apt.city}
+                {apt.zh ? `${apt.zh.split(" ")[0]}（${apt.city}）` : apt.city}
                 {apt.name !== apt.city ? ` — ${apt.name}` : ""}
               </span>
               <span className="text-xs text-gray-400 ml-auto shrink-0">{apt.country}</span>
