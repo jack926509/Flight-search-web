@@ -1,8 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import SearchCard from "./SearchCard";
 import ResultsSection from "./ResultsSection";
+import MultiSearchCard from "./MultiSearchCard";
+import MultiLegResults from "./MultiLegResults";
 import { useSearch } from "@/hooks/useSearch";
+import { useMultiSearch } from "@/hooks/useMultiSearch";
 import { useHealth } from "@/hooks/useHealth";
 
 export default function SearchPage() {
@@ -17,6 +22,12 @@ export default function SearchPage() {
     handleSubmit, swapAirports, retry, goDate,
     today,
   } = useSearch();
+
+  const multi = useMultiSearch();
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<"single" | "multi">(
+    searchParams.get("mode") === "multi" ? "multi" : "single"
+  );
 
   const health = useHealth();
   // 狀態燈以真實 /api/health 為準；上次搜尋失敗也視為異常訊號
@@ -44,34 +55,98 @@ export default function SearchPage() {
 
       {/* Main */}
       <main className="flex-1 px-4 py-8">
-        <SearchCard
-          origin={origin}
-          dest={dest}
-          date={date}
-          adults={adults}
-          cabin={cabin}
-          today={today}
-          loading={status === "loading"}
-          onOriginChange={setOrigin}
-          onDestChange={setDest}
-          onDateChange={setDate}
-          onAdultsChange={setAdults}
-          onCabinChange={setCabin}
-          onSwap={swapAirports}
-          onSubmit={handleSubmit}
-        />
+        {/* Mode tabs */}
+        <div
+          role="tablist"
+          aria-label="查詢模式"
+          className="flex gap-2 w-full max-w-3xl mx-auto mb-4"
+        >
+          <button
+            role="tab"
+            aria-selected={mode === "single"}
+            type="button"
+            onClick={() => setMode("single")}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-colors ${
+              mode === "single"
+                ? "bg-[#0B5FFF] text-white"
+                : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            單程查詢
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === "multi"}
+            type="button"
+            onClick={() => setMode("multi")}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-colors ${
+              mode === "multi"
+                ? "bg-[#0B5FFF] text-white"
+                : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            多段行程（外站・四腿）
+          </button>
+        </div>
 
-        <ResultsSection
-          status={status}
-          result={result}
-          error={error}
-          sortBy={sortBy}
-          origin={origin}
-          dest={dest}
-          onSortChange={setSortBy}
-          onRetry={retry}
-          onGoDate={goDate}
-        />
+        {mode === "single" ? (
+          <>
+            <SearchCard
+              origin={origin}
+              dest={dest}
+              date={date}
+              adults={adults}
+              cabin={cabin}
+              today={today}
+              loading={status === "loading"}
+              onOriginChange={setOrigin}
+              onDestChange={setDest}
+              onDateChange={setDate}
+              onAdultsChange={setAdults}
+              onCabinChange={setCabin}
+              onSwap={swapAirports}
+              onSubmit={handleSubmit}
+            />
+
+            <ResultsSection
+              status={status}
+              result={result}
+              error={error}
+              sortBy={sortBy}
+              origin={origin}
+              dest={dest}
+              onSortChange={setSortBy}
+              onRetry={retry}
+              onGoDate={goDate}
+            />
+          </>
+        ) : (
+          <>
+            <MultiSearchCard
+              legs={multi.legs}
+              adults={multi.adults}
+              cabin={multi.cabin}
+              today={multi.today}
+              searching={multi.searching}
+              allLegsFilled={multi.allLegsFilled}
+              onLegChange={multi.updateLeg}
+              onAddLeg={multi.addLeg}
+              onRemoveLeg={multi.removeLeg}
+              onAdultsChange={multi.setAdults}
+              onCabinChange={multi.setCabin}
+              onSubmit={multi.searchAll}
+            />
+
+            <MultiLegResults
+              legs={multi.legs}
+              legStates={multi.legStates}
+              total={multi.total}
+              unpricedCount={multi.unpricedCount}
+              onRetryLeg={multi.retryLeg}
+              onSelectFlight={multi.selectFlight}
+            />
+          </>
+        )}
       </main>
 
       <footer className="py-4 text-center text-xs text-gray-300">
