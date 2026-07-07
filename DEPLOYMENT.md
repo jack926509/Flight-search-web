@@ -2,6 +2,7 @@
 
 > 單一事實來源：`backend/.env.example`（後端）與 `frontend/.env.example`（前端）。
 > 本文件是部署時的操作對照表。真實金鑰只存在 Zeabur / Cloudflare Pages 後台與密碼管理器，絕不進 repo。
+> 部署後遇到任何異常 → 見 **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**（症狀 → 原因 → 解決方法）。
 
 ## 1. Zeabur（後端 `/backend`）
 

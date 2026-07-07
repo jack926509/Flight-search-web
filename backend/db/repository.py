@@ -1,4 +1,5 @@
 """All Supabase DB operations for Phase 2+3."""
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -184,9 +185,14 @@ async def set_throttled(db: AsyncClient, provider: str, throttled: bool) -> None
 # ── health / Postgres liveness ────────────────────────────────────────────────
 
 async def ping_db(db: AsyncClient) -> bool:
-    """True if Postgres is reachable — used by health endpoint to keep Supabase Free alive (G12)."""
+    """True if Postgres is reachable — used by health endpoint to keep Supabase Free alive (G12).
+
+    DB 連線黑洞（DNS 停滯／TCP 不回）時 await 會無限掛住，health 端點跟著掛，
+    監控會誤判整個服務死亡而非 db:false——必須硬性逾時。
+    """
     try:
-        await db.table("tracked_routes").select("route").limit(1).execute()
+        async with asyncio.timeout(5):
+            await db.table("tracked_routes").select("route").limit(1).execute()
         return True
     except Exception:
         return False

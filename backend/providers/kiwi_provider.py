@@ -65,12 +65,14 @@ class KiwiProvider(FlightProvider):
             return
         month_key = self._month_key()
         try:
-            current = await repo.get_monthly_calls(self._db, self.name, month_key)
-            if current >= _KIWI_SOFT_LIMIT:
-                raise QuotaExceeded(
-                    f"kiwi quota soft limit reached ({current}/{_KIWI_SOFT_LIMIT})"
-                )
-            await repo.increment_monthly_calls(self._db, self.name, month_key)
+            # DB 掛住不能卡死備援路徑：配額計數以 8s 硬性逾時兜底
+            async with asyncio.timeout(8):
+                current = await repo.get_monthly_calls(self._db, self.name, month_key)
+                if current >= _KIWI_SOFT_LIMIT:
+                    raise QuotaExceeded(
+                        f"kiwi quota soft limit reached ({current}/{_KIWI_SOFT_LIMIT})"
+                    )
+                await repo.increment_monthly_calls(self._db, self.name, month_key)
         except QuotaExceeded:
             raise
         except Exception as exc:

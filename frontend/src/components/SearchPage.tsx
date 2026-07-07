@@ -3,6 +3,7 @@
 import SearchCard from "./SearchCard";
 import ResultsSection from "./ResultsSection";
 import { useSearch } from "@/hooks/useSearch";
+import { useHealth } from "@/hooks/useHealth";
 
 export default function SearchPage() {
   const {
@@ -17,6 +18,15 @@ export default function SearchPage() {
     today,
   } = useSearch();
 
+  const health = useHealth();
+  // 狀態燈以真實 /api/health 為準；上次搜尋失敗也視為異常訊號
+  const light =
+    health === "down" || status === "error"
+      ? { color: "bg-red-500", text: "異常", hint: "後端服務無回應" }
+      : health === "degraded"
+        ? { color: "bg-yellow-400", text: "部分異常", hint: "資料庫離線，快取與價格歷史暫停，即時查詢仍可用" }
+        : { color: "bg-green-400", text: "正常", hint: "所有服務正常" };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
@@ -25,13 +35,10 @@ export default function SearchPage() {
         <div
           className="flex items-center gap-1.5 text-xs text-gray-400"
           aria-label="系統狀態"
+          title={light.hint}
         >
-          <span
-            className={`inline-block w-2 h-2 rounded-full ${
-              status === "error" ? "bg-red-500" : "bg-green-400"
-            }`}
-          />
-          {status === "error" ? "異常" : "正常"}
+          <span className={`inline-block w-2 h-2 rounded-full ${light.color}`} />
+          {light.text}
         </div>
       </header>
 

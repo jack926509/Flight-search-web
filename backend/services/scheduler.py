@@ -20,11 +20,12 @@ async def _fetch_route(route: str, cached_search, db) -> None:
     # Job fires at 09:00 Asia/Taipei — use the Taipei date, not the container's local date
     today = datetime.now(_TZ).date().isoformat()
 
-    if await repo.has_history_today(db, route, today):
-        logger.info("scheduler: route=%s date=%s already fetched, skipping", route, today)
-        return
-
+    # 整段包 try：gather(return_exceptions=True) 會靜默吞例外，這裡必須自行留 log
     try:
+        if await repo.has_history_today(db, route, today):
+            logger.info("scheduler: route=%s date=%s already fetched, skipping", route, today)
+            return
+
         result = await cached_search.search(origin, dest, today, 1, "economy")
         logger.info(
             "scheduler: route=%s date=%s fetched %d flights source=%s",

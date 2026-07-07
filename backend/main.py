@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -216,6 +217,11 @@ async def price_history(
     if _cached_search is None:
         raise HTTPException(status_code=503, detail="Database not configured")
 
-    db = await db_client.get_client()
-    data = await repo.get_price_history(db, route, days)
+    # DB 故障（例外或掛住）回 503 而非 500／無限等待
+    try:
+        async with asyncio.timeout(8):
+            db = await db_client.get_client()
+            data = await repo.get_price_history(db, route, days)
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unavailable")
     return {"route": route, "days": days, "history": data}

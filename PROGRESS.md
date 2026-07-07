@@ -17,7 +17,7 @@
 | 4 | 前端 UI | ✅ | — | 🔶 | 🔶 待人工驗收 |
 | 5 | 部署＋E2E＋驗收 | ✅ E2E | ⬜ | ⬜ | ⬜ 未開始 |
 
-**目前測試總數：43 passing**（Phase 1: 20 + Phase 2: 6 + Phase 3: 17）
+**目前測試總數：46 passing**（Phase 1: 20 + Phase 2: 9 + Phase 3: 17）
 
 **2026-07-06 全系統程式碼審查**：修正節流自動恢復、`/api/history` rate limit、
 token 時序攻擊防護、UTC 日期偏移、Playwright 依賴缺失等 12 項問題。
@@ -62,6 +62,25 @@ rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）
 結果卡片＋排序／趨勢累積中／空結果＋前後一天鈕／錯誤＋重試＋狀態燈轉紅／
 手機 375px 首頁＋結果頁。E2E 4/4 綠（空結果路徑本輪起由 stub 真實觸發）、
 tsc 無錯、後端 43 tests 維持全綠。
+
+**2026-07-07 異常處理複審（第四輪）＋處理手冊**：新增 **`TROUBLESHOOTING.md`**
+（所有異常狀況的症狀→原因→自動恢復→手動解法＋快速診斷指令）。
+以「填錯 SUPABASE_URL」實測 DB 死亡情境，發現並修復 5 個韌性問題：
+1. 🔴 **DB 掛掉會拖垮搜尋**——`cached_search` 快取讀寫無錯誤保護，Supabase
+   故障時 `/api/search` 直接 500（即使兩個資料源都正常）。修復：讀取失敗視為
+   miss、寫入失敗 non-fatal、全部套 8s 硬性逾時；DB 死亡實測搜尋照常回
+   `source=kiwi`（9.8s）。
+2. 🔴 **`ping_db` 無逾時**——DB 連線黑洞時 `/api/health` 掛住 >10s，監控會
+   誤判整個服務死亡。修復：5s 逾時；實測 health 0.3s 回 `db:false`。
+3. `/api/history` DB 故障回 500／掛住 → 改 8s 逾時＋503。
+4. Kiwi 配額檢查無逾時（DB 掛住卡死備援路徑）→ 8s 逾時兜底。
+5. 排程 `has_history_today` 例外被 `gather(return_exceptions=True)` 靜默吞掉
+   → 移入 try 塊確保留 log。
+前端異常體驗同步強化：錯誤訊息全面中文化＋行動指引（連線逾時／無法連線／
+Token 不符／太頻繁／查詢條件有誤／兩資料源皆失效，各自對應解法）；
+右上系統狀態燈改接真實 `/api/health`（每 60s 輪詢）三態顯示：
+🟢正常／🟡部分異常（DB 離線，目視已驗）／🔴異常（後端無回應，目視已驗）。
+新增 3 個 DB 韌性回歸測試（46 passing）、E2E 4/4 綠、tsc 無錯。
 
 ---
 
@@ -118,7 +137,7 @@ tsc 無錯、後端 43 tests 維持全綠。
 - [ ] 🧑 同查詢連打兩次：第一次 `fast_flights`（3–8s）、第二次 `cache`（<1s）
 - [ ] 🧑 改某筆 `expires_at` 為過去＋弄壞兩 provider → 回 `stale: true`
 - [ ] 🧑 `/api/history` 有資料
-- [ ] 🧑 health 保活實測：填錯 `SUPABASE_URL` → `db` 欄位轉 false
+- [x] health 保活實測：填錯 `SUPABASE_URL` → `db: false`（0.3s 回應）✓；DB 死亡時搜尋降級直查照常成功 ✓（2026-07-07 第四輪實測）
 - [ ] `git tag phase-2-done`
 
 ---
