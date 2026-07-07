@@ -93,7 +93,7 @@ def test_health_ok():
     data = resp.json()
     assert data["status"] == "ok"
     assert "fast_flights" in data["providers"]
-    assert "amadeus" in data["providers"]
+    assert "kiwi" in data["providers"]
 
 
 # ── error handling ────────────────────────────────────────────────────────────

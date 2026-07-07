@@ -11,12 +11,8 @@
 
 | 變數 | 來源／產生方式 | 範例值 |
 |---|---|---|
-| `SUPABASE_URL` | Supabase → Project Settings → API | `https://xxxx.supabase.co` |
-| `SUPABASE_SERVICE_KEY` | 同上，取 **service_role** key（不是 anon） | `eyJ...` |
-| `AMADEUS_API_KEY` | developers.amadeus.com → My Apps | — |
-| `AMADEUS_API_SECRET` | 同上 | — |
-| `AMADEUS_ENV` | 附錄 F 閘門通過前固定 `test` | `test` |
-| `AMADEUS_MONTHLY_QUOTA` | 依 Amadeus 後台實際免費額度 | `2000` |
+| `SUPABASE_URL` | 已建：專案 `flight-search` | `https://abbjtfnbzxwxkrurijvl.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | Supabase → Project Settings → API，取 **service_role** key（不是 anon） | `eyJ...` |
 | `API_TOKEN` | `openssl rand -hex 24` | — |
 | `ALLOWED_ORIGINS` | Cloudflare Pages 部署後的網域 | `https://xxx.pages.dev` |
 
@@ -29,7 +25,9 @@
 | `THROTTLE_HOURS` | `24` | 封鎖訊號後自動節流時長，到期自動恢復 |
 | `THROTTLE_MODE` | `off` | `on` = 手動強制節流（§5.5 應急開關） |
 | `CB_COOLDOWN_SECONDS` | `300` | 熔斷器 OPEN→HALF_OPEN 冷卻 |
-| `FX_USD_TWD` | `32.0` | Amadeus 回 USD 時的兜底匯率 |
+| `KIWI_MCP_URL` | `https://mcp.kiwi.com/` | Kiwi.com 官方公開 MCP 端點（免金鑰） |
+| `KIWI_MONTHLY_QUOTA` | `3000` | Kiwi 每月自律上限（G4），達 90% 自動停用 |
+| `FX_USD_TWD` | `32.0` | 備援 provider 回 USD 時的兜底匯率 |
 | `HTTPS_PROXY` | 空 | 純選配鉤子（§5.5 三招無效才考慮） |
 
 ## 2. Cloudflare Pages（前端 `/frontend`）
@@ -52,7 +50,7 @@ Build command：`npm run build`　Output directory：`out`
 
 ## 4. 部署順序（變數相依關係）
 
-1. Supabase 建專案 → 執行 `db/schema.sql`、`db/schema_v2.sql` → 取得兩把 Supabase 金鑰
+1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` 已套用、RLS 已啟用）→ 只剩取得 service_role key
 2. `openssl rand -hex 24` 產生 `API_TOKEN`
 3. Zeabur 部署後端（先填上述變數，`ALLOWED_ORIGINS` 暫填 `http://localhost:3000`）
 4. Cloudflare Pages 部署前端（`NEXT_PUBLIC_API_URL` 填 Zeabur 網域）

@@ -11,34 +11,27 @@ tomorrow = (date.today() + timedelta(days=1)).isoformat()
 # ── Quota protection (90% soft limit) ─────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_amadeus_quota_exceeded_raises():
-    from providers.amadeus_provider import AmadeusProvider, QuotaExceeded
+async def test_kiwi_quota_exceeded_raises():
+    from providers.kiwi_provider import KiwiProvider, QuotaExceeded, _KIWI_SOFT_LIMIT
 
-    provider = AmadeusProvider()
-    provider._api_key = "KEY"
-    provider._api_secret = "SECRET"
+    provider = KiwiProvider()
     db = MagicMock()
     provider.set_db(db)
 
     with (
-        patch("providers.amadeus_provider.repo.get_monthly_calls", new_callable=AsyncMock, return_value=1800),
-        patch("providers.amadeus_provider.repo.increment_monthly_calls", new_callable=AsyncMock),
+        patch("providers.kiwi_provider.repo.get_monthly_calls", new_callable=AsyncMock, return_value=_KIWI_SOFT_LIMIT),
+        patch("providers.kiwi_provider.repo.increment_monthly_calls", new_callable=AsyncMock),
     ):
         with pytest.raises(QuotaExceeded):
             await provider.search("TPE", "NRT", tomorrow)
 
 
 @pytest.mark.asyncio
-async def test_amadeus_quota_increments_before_call():
+async def test_kiwi_quota_increments_before_call():
     """G3: quota counter incremented BEFORE the API call."""
-    from providers.amadeus_provider import AmadeusProvider
+    from providers.kiwi_provider import KiwiProvider
 
-    provider = AmadeusProvider()
-    provider._api_key = "KEY"
-    provider._api_secret = "SECRET"
-    provider._token = "tok"
-    provider._token_expires_at = 9999999999.0
-
+    provider = KiwiProvider()
     db = MagicMock()
     provider.set_db(db)
 
@@ -52,29 +45,18 @@ async def test_amadeus_quota_increments_before_call():
         call_order.append("increment_monthly_calls")
         return 1
 
-    import httpx
-    from unittest.mock import AsyncMock as AM
-
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = {"data": []}
-    mock_resp.raise_for_status = MagicMock()
+    async def mock_call_mcp(*a, **kw):
+        call_order.append("mcp_call")
+        return {"currency": "TWD", "itineraries": []}
 
     with (
-        patch("providers.amadeus_provider.repo.get_monthly_calls", side_effect=mock_get_calls),
-        patch("providers.amadeus_provider.repo.increment_monthly_calls", side_effect=mock_increment),
-        patch("providers.amadeus_provider.httpx.AsyncClient") as mock_cls,
+        patch("providers.kiwi_provider.repo.get_monthly_calls", side_effect=mock_get_calls),
+        patch("providers.kiwi_provider.repo.increment_monthly_calls", side_effect=mock_increment),
+        patch.object(KiwiProvider, "_call_mcp", side_effect=mock_call_mcp),
     ):
-        mock_client = AM()
-        mock_client.__aenter__ = AM(return_value=mock_client)
-        mock_client.__aexit__ = AM(return_value=None)
-        mock_client.get = AM(return_value=mock_resp)
-        mock_cls.return_value = mock_client
-
         await provider.search("TPE", "NRT", tomorrow)
 
-    assert call_order.index("increment_monthly_calls") < call_order.index("increment_monthly_calls") + 1
-    assert "get_monthly_calls" in call_order
-    assert "increment_monthly_calls" in call_order
+    assert call_order == ["get_monthly_calls", "increment_monthly_calls", "mcp_call"]
 
 
 # ── API token middleware ───────────────────────────────────────────────────────
@@ -122,6 +104,28 @@ def test_api_health_exempt_from_token(monkeypatch):
     with TestClient(app) as tc:
         resp = tc.get("/api/health")
     assert resp.status_code == 200
+
+
+def test_cors_preflight_exempt_from_token(monkeypatch):
+    """CORS preflight (OPTIONS) 不帶自訂標頭，token 中介軟體必須放行給 CORSMiddleware。"""
+    monkeypatch.setenv("API_TOKEN", "super-secret")
+
+    from fastapi.testclient import TestClient
+    from main import app
+
+    with TestClient(app) as tc:
+        resp = tc.options(
+            f"/api/search?origin=TPE&dest=NRT&date={tomorrow}",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "x-api-token",
+            },
+        )
+    assert resp.status_code == 200
+    # 測試環境 ALLOWED_ORIGINS 預設 "*"；部署時為具體 Pages 網域
+    assert resp.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
+    assert "GET" in resp.headers.get("access-control-allow-methods", "")
 
 
 # ── Rate limit ────────────────────────────────────────────────────────────────

@@ -49,6 +49,7 @@ rl.on("line", (line) => {
   const type = row.type ?? "";
   const iata = (row.iata_code ?? "").trim();
   if (!ALLOWED_TYPES.has(type) || !iata || iata.length !== 3) return;
+  if (row.scheduled_service !== "yes") return;
 
   airports.push({
     iata,

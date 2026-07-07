@@ -68,7 +68,7 @@ export default function SearchPage() {
       </main>
 
       <footer className="py-4 text-center text-xs text-gray-300">
-        資料來自 Google Flights 及 Amadeus，僅供參考，實際票價以訂票頁為準
+        資料來自 Google Flights 及 Kiwi.com，僅供參考，實際票價以訂票頁為準
       </footer>
     </div>
   );

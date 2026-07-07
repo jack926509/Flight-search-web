@@ -15,8 +15,8 @@ from slowapi.util import get_remote_address
 
 from db import client as db_client
 from db import repository as repo
-from providers.amadeus_provider import AmadeusProvider
 from providers.fast_flights_provider import FastFlightsProvider
+from providers.kiwi_provider import KiwiProvider
 from services.cached_search import CachedSearch
 from services.circuit_breaker import CircuitBreaker
 from services.search_chain import AllProvidersFailed, SearchChain
@@ -24,8 +24,8 @@ from services.search_chain import AllProvidersFailed, SearchChain
 logger = logging.getLogger(__name__)
 
 _fast_flights = FastFlightsProvider()
-_amadeus = AmadeusProvider()
-_chain = SearchChain([_fast_flights, _amadeus])
+_kiwi = KiwiProvider()
+_chain = SearchChain([_fast_flights, _kiwi])
 _cached_search: CachedSearch | None = None
 _circuit_breakers: dict[str, CircuitBreaker] = {}
 _scheduler = None
@@ -42,19 +42,19 @@ async def lifespan(app: FastAPI):
 
         # Init circuit breakers (E6: load persisted state)
         ff_cb = CircuitBreaker("fast_flights")
-        am_cb = CircuitBreaker("amadeus")
+        kiwi_cb = CircuitBreaker("kiwi")
         ff_cb.set_db(db)
-        am_cb.set_db(db)
+        kiwi_cb.set_db(db)
         await ff_cb.load_from_db()
-        await am_cb.load_from_db()
-        _circuit_breakers = {"fast_flights": ff_cb, "amadeus": am_cb}
+        await kiwi_cb.load_from_db()
+        _circuit_breakers = {"fast_flights": ff_cb, "kiwi": kiwi_cb}
 
         # Give providers DB access for quota and throttle tracking
         _fast_flights.set_db(db)
-        _amadeus.set_db(db)
+        _kiwi.set_db(db)
         await _fast_flights.load_from_db()  # restore throttle state after restart
 
-        _chain = SearchChain([_fast_flights, _amadeus], circuit_breakers=_circuit_breakers)
+        _chain = SearchChain([_fast_flights, _kiwi], circuit_breakers=_circuit_breakers)
         _cached_search = CachedSearch(_chain, db)
 
         # Start daily price scheduler
@@ -97,7 +97,10 @@ class ErrorDetail(BaseModel):
 @app.middleware("http")
 async def api_token_middleware(request: Request, call_next):
     required_token = os.getenv("API_TOKEN", "")
+    # CORS preflight (OPTIONS) 依規範不帶自訂標頭，必須放行給 CORSMiddleware 回應；
     # /api/health is exempt so monitoring services don't need a token
+    if request.method == "OPTIONS":
+        return await call_next(request)
     if required_token and request.url.path.startswith("/api/") and request.url.path != "/api/health":
         provided = request.headers.get("X-API-Token", "")
         if not secrets.compare_digest(provided, required_token):
@@ -133,9 +136,6 @@ async def global_exception_handler(request, exc):
 
 @app.get("/api/health")
 async def health():
-    amadeus_configured = bool(
-        os.getenv("AMADEUS_API_KEY") and os.getenv("AMADEUS_API_SECRET")
-    )
     db_ok: bool | None = None
     if os.getenv("SUPABASE_URL"):
         try:
@@ -152,7 +152,8 @@ async def health():
                 "reachable": True,
                 "throttled": _fast_flights._throttled,
             },
-            "amadeus": {"reachable": amadeus_configured},
+            # Kiwi MCP 免金鑰，無「未設定」狀態；實際可達性由熔斷器狀態反映
+            "kiwi": {"reachable": True},
         },
         "circuit_breakers": {
             name: cb.current_state() for name, cb in _circuit_breakers.items()
