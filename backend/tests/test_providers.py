@@ -56,111 +56,110 @@ def test_fast_flights_single_parse_failure_does_not_crash():
     assert result is None
 
 
-# ── AmadeusProvider ────────────────────────────────────────────────────────────
+# ── KiwiProvider ───────────────────────────────────────────────────────────────
 
-def _make_amadeus_response():
+def _make_kiwi_payload(price: int = 5009, currency: str = "TWD"):
+    """Sample payload matching the real Kiwi MCP search-flight response shape."""
     return {
-        "data": [
+        "query": "TPE → NRT on 05/08/2026, 1 adult",
+        "currency": currency,
+        "resultsCount": 1,
+        "itineraries": [
             {
-                "itineraries": [
-                    {
-                        "duration": "PT4H30M",
-                        "segments": [
-                            {
-                                "departure": {"iataCode": "TPE", "at": "2026-10-01T08:00:00"},
-                                "arrival": {"iataCode": "NRT", "at": "2026-10-01T12:30:00"},
-                                "carrierCode": "BR",
-                                "number": "197",
-                                "numberOfStops": 0,
-                            }
-                        ],
-                    }
-                ],
-                "price": {"total": "12500.00", "currency": "TWD"},
+                "price": price,
+                "priceFormatted": f"{price} {currency}",
+                "totalDurationSeconds": 12600,
+                "bookingUrl": "https://kiwi.com/u/7f7vs5",
+                "outbound": {
+                    "from": "TPE",
+                    "to": "NRT",
+                    "departureTime": "2026-08-05T02:00:00",
+                    "arrivalTime": "2026-08-05T06:30:00",
+                    "durationSeconds": 12600,
+                    "stops": 0,
+                    "route": ["TPE", "NRT"],
+                    "cabinClass": "Economy",
+                    "segments": [
+                        {
+                            "from": "TPE",
+                            "to": "NRT",
+                            "departureTime": "2026-08-05T02:00:00",
+                            "arrivalTime": "2026-08-05T06:30:00",
+                            "durationSeconds": 12600,
+                            "carrier": "MM",
+                            "flightNumber": "MM620",
+                            "cabinClass": "Economy",
+                        }
+                    ],
+                },
+                "inbound": None,
             }
-        ]
+        ],
     }
 
 
 @pytest.mark.asyncio
-async def test_amadeus_maps_correctly():
-    import httpx
+async def test_kiwi_maps_correctly():
     from unittest.mock import AsyncMock
-    from providers.amadeus_provider import AmadeusProvider
+    from providers.kiwi_provider import KiwiProvider
 
-    provider = AmadeusProvider()
-    provider._api_key = "KEY"
-    provider._api_secret = "SECRET"
-    provider._token = "tok"
-    provider._token_expires_at = 9999999999.0
+    provider = KiwiProvider()
+    with patch.object(
+        provider, "_call_mcp", new=AsyncMock(return_value=_make_kiwi_payload())
+    ) as mock_call:
+        result = await provider.search("TPE", "NRT", "2026-08-05")
 
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = _make_amadeus_response()
-    mock_resp.raise_for_status = MagicMock()
-
-    with patch("providers.amadeus_provider.httpx.AsyncClient") as mock_client_cls:
-        mock_client = AsyncMock()
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
-        mock_client.get = AsyncMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
-
-        result = await provider.search("TPE", "NRT", "2026-10-01")
-
-    assert result.source == "amadeus"
+    assert result.source == "kiwi"
     assert len(result.flights) == 1
     f = result.flights[0]
-    assert f.flight_no == "BR197"
-    assert f.duration_min == 270
+    assert f.airline == "MM"
+    assert f.flight_no == "MM620"
+    assert f.depart_time == "02:00"
+    assert f.arrive_time == "06:30"
+    assert f.duration_min == 210
     assert f.currency == "TWD"
-    assert f.price == 12500
+    assert f.price == 5009
     assert f.stops == 0
 
-
-@pytest.mark.asyncio
-async def test_amadeus_unconfigured_raises():
-    import os
-    from providers.amadeus_provider import AmadeusProvider
-
-    provider = AmadeusProvider()
-    provider._api_key = ""
-    provider._api_secret = ""
-
-    with pytest.raises(RuntimeError, match="credentials"):
-        await provider.search("TPE", "NRT", "2026-10-01")
+    # 日期轉為 Kiwi 的 DD/MM/YYYY、幣別鎖 TWD、艙等映射 economy→M
+    args = mock_call.call_args.args[0]
+    assert args["departureDate"] == "05/08/2026"
+    assert args["currency"] == "TWD"
+    assert args["cabinClass"] == "M"
 
 
 @pytest.mark.asyncio
-async def test_amadeus_usd_offer_converted_with_fx_fallback():
-    """FX 兜底：test 環境回 USD 時以 FX_USD_TWD 換算並標 original_currency。"""
+async def test_kiwi_usd_payload_converted_with_fx_fallback():
+    """FX 兜底：回 USD 時以 FX_USD_TWD 換算並標 original_currency。"""
     from unittest.mock import AsyncMock
-    from providers.amadeus_provider import AmadeusProvider
+    from providers.kiwi_provider import KiwiProvider
 
-    provider = AmadeusProvider()
-    provider._api_key = "KEY"
-    provider._api_secret = "SECRET"
-    provider._token = "tok"
-    provider._token_expires_at = 9999999999.0
+    provider = KiwiProvider()
+    payload = _make_kiwi_payload(price=400, currency="USD")
 
-    body = _make_amadeus_response()
-    body["data"][0]["price"] = {"total": "400.00", "currency": "USD"}
-
-    mock_resp = MagicMock()
-    mock_resp.json.return_value = body
-    mock_resp.raise_for_status = MagicMock()
-
-    with patch("providers.amadeus_provider.httpx.AsyncClient") as mock_client_cls, \
-         patch("providers.amadeus_provider._FX_USD_TWD", 32.0):
-        mock_client = AsyncMock()
-        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-        mock_client.__aexit__ = AsyncMock(return_value=None)
-        mock_client.get = AsyncMock(return_value=mock_resp)
-        mock_client_cls.return_value = mock_client
-
-        result = await provider.search("TPE", "NRT", "2026-10-01")
+    with patch.object(provider, "_call_mcp", new=AsyncMock(return_value=payload)), \
+         patch("providers.kiwi_provider._FX_USD_TWD", 32.0):
+        result = await provider.search("TPE", "NRT", "2026-08-05")
 
     assert len(result.flights) == 1
     f = result.flights[0]
     assert f.currency == "TWD"
     assert f.original_currency == "USD"
     assert f.price == 12800  # 400 * 32.0
+
+
+@pytest.mark.asyncio
+async def test_kiwi_single_parse_failure_does_not_crash():
+    """壞掉的 itinerary 跳過，其餘照常回傳（G13）。"""
+    from unittest.mock import AsyncMock
+    from providers.kiwi_provider import KiwiProvider
+
+    payload = _make_kiwi_payload()
+    payload["itineraries"].insert(0, {"price": 1, "outbound": None})  # unparsable
+
+    provider = KiwiProvider()
+    with patch.object(provider, "_call_mcp", new=AsyncMock(return_value=payload)):
+        result = await provider.search("TPE", "NRT", "2026-08-05")
+
+    assert len(result.flights) == 1
+    assert result.flights[0].flight_no == "MM620"

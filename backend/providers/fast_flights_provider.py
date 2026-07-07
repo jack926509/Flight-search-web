@@ -86,7 +86,7 @@ class FastFlightsProvider(FlightProvider):
 
     @property
     def _throttled(self) -> bool:
-        """Throttle auto-expires so fast-flights returns to first place (Amadeus 不得成為預設首選)."""
+        """Throttle auto-expires so fast-flights returns to first place (備援 provider 不得成為預設首選)."""
         if self._throttled_until is None:
             return False
         if datetime.now(timezone.utc) >= self._throttled_until:
