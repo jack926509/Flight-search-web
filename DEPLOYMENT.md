@@ -6,6 +6,13 @@
 
 ## 1. Zeabur（後端 `/backend`）
 
+目前後端：
+
+- Project：`untitled`（ID `6a4c6b637e05aa801c1ab360`）
+- Service：`flight-search-web`（ID `6a4c6b717e05aa801c1ab366`）
+- URL：`https://flight-search-web.zeabur.app`
+- 已驗證：`/api/health` 回 200，`db: true`，`fast_flights` / `kiwi` 均 reachable。
+
 依序在 Zeabur → Service → Environment Variables 設定：
 
 ### 必填
@@ -33,6 +40,14 @@
 
 ## 2. Cloudflare Pages（前端 `/frontend`）
 
+目前前端：
+
+- Project：`flight-search-web`
+- Production URL：`https://flight-search-web-29x.pages.dev`
+- 最新部署：`https://3c752776.flight-search-web-29x.pages.dev`
+- 部署方式：Wrangler Direct Upload（本機以 `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_TOKEN` build 後上傳 `out/`）
+- 已驗證：首頁 HTTP 200，HTML title 為 `FlightSearch — 機票快速搜尋`，375px Playwright 煙霧測試通過。
+
 Build command：`npm run build`　Output directory：`out`
 
 | 變數 | 值 | 注意 |
@@ -51,9 +66,9 @@ Build command：`npm run build`　Output directory：`out`
 
 ## 4. 部署順序（變數相依關係）
 
-1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` 已套用、RLS 已啟用）→ 只剩取得 service_role key
-2. `openssl rand -hex 24` 產生 `API_TOKEN`
-3. Zeabur 部署後端（先填上述變數，`ALLOWED_ORIGINS` 暫填 `http://localhost:3000`）
-4. Cloudflare Pages 部署前端（`NEXT_PUBLIC_API_URL` 填 Zeabur 網域）
-5. 回 Zeabur 把 `ALLOWED_ORIGINS` 改成 Pages 網域 → 重啟
-6. UptimeRobot 打 `https://<zeabur-domain>/api/health`（5 分鐘）
+1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` 已套用、RLS 已啟用）
+2. ~~`openssl rand -hex 24` 產生 `API_TOKEN`~~ ✅ 已完成並設於 Zeabur
+3. ~~Zeabur 部署後端~~ ✅ 已完成（Docker / FastAPI / uvicorn）
+4. ~~Cloudflare Pages 部署前端~~ ✅ 已完成
+5. ~~回 Zeabur 把 `ALLOWED_ORIGINS` 改成 Pages 網域 → 重啟~~ ✅ 已完成
+6. UptimeRobot 打 `https://flight-search-web.zeabur.app/api/health`（5 分鐘）⬜ 待設定
