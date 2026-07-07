@@ -137,7 +137,7 @@ export default function ResultsSection({
 
           {/* Source info */}
           <p className="text-xs text-gray-400">
-            資料來源：{result.source === "cache" ? "快取" : result.source === "fast_flights" ? "Google Flights" : "Amadeus"}
+            資料來源：{result.source === "cache" ? "快取" : result.source === "fast_flights" ? "Google Flights" : "Kiwi.com"}
             ・{formatRelativeTime(result.fetched_at)}
           </p>
 

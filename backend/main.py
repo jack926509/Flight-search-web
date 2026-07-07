@@ -97,7 +97,10 @@ class ErrorDetail(BaseModel):
 @app.middleware("http")
 async def api_token_middleware(request: Request, call_next):
     required_token = os.getenv("API_TOKEN", "")
+    # CORS preflight (OPTIONS) 依規範不帶自訂標頭，必須放行給 CORSMiddleware 回應；
     # /api/health is exempt so monitoring services don't need a token
+    if request.method == "OPTIONS":
+        return await call_next(request)
     if required_token and request.url.path.startswith("/api/") and request.url.path != "/api/health":
         provided = request.headers.get("X-API-Token", "")
         if not secrets.compare_digest(provided, required_token):

@@ -10,7 +10,7 @@ const Line = dynamic(
       const { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Legend } = m;
       function Chart({ data }: { data: PricePoint[] }) {
         const fastData = data.filter((d) => d.source === "fast_flights");
-        const amadeusData = data.filter((d) => d.source === "amadeus");
+        const kiwiData = data.filter((d) => d.source === "kiwi");
 
         return (
           <ResponsiveContainer width="100%" height={200}>
@@ -44,14 +44,14 @@ const Line = dynamic(
                   strokeWidth={2}
                 />
               )}
-              {amadeusData.length > 0 && (
+              {kiwiData.length > 0 && (
                 <Line
                   type="monotone"
-                  data={amadeusData}
+                  data={kiwiData}
                   dataKey="lowest_price_twd"
                   stroke="#0A7A3D"
                   dot={false}
-                  name="Amadeus"
+                  name="Kiwi.com"
                   strokeWidth={2}
                   strokeDasharray="4 2"
                 />

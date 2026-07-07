@@ -17,7 +17,7 @@
 | 4 | 前端 UI | ✅ | — | 🔶 | 🔶 待人工驗收 |
 | 5 | 部署＋E2E＋驗收 | ✅ E2E | ⬜ | ⬜ | ⬜ 未開始 |
 
-**目前測試總數：42 passing**（Phase 1: 20 + Phase 2: 6 + Phase 3: 16）
+**目前測試總數：43 passing**（Phase 1: 20 + Phase 2: 6 + Phase 3: 17）
 
 **2026-07-06 全系統程式碼審查**：修正節流自動恢復、`/api/history` rate limit、
 token 時序攻擊防護、UTC 日期偏移、Playwright 依賴缺失等 12 項問題。
@@ -31,6 +31,20 @@ MCP 端點（`https://mcp.kiwi.com/`，免金鑰、原生 TWD、已實測 TPE→
 （`KIWI_MONTHLY_QUOTA=3000`）、熔斷器、retry 與 FX 兜底；`schema_v3.sql` 已套用。
 計畫書內所有 Amadeus 相關驗收項（附錄 F 閘門、`AMADEUS_ENV` 切換）作廢，
 對應驗收改為：Kiwi 切換實測。測試維持 42 passing。
+
+**2026-07-07 全案穩定性複審（第二輪）**：後端本地實際啟動、全 API 逐項實測
+＋前端重建＋Playwright E2E 真瀏覽器驗證（本地 Kiwi MCP stub 模擬備援）。
+發現並修復 3 個問題：
+1. 🔴 **CORS preflight 被 token 中介軟體擋下（會炸正式環境）**——瀏覽器帶
+   `X-API-Token` 前必發 OPTIONS preflight 且依規範不帶自訂標頭，中介軟體
+   一律回 403 導致前端所有 API 呼叫被瀏覽器封鎖。已修：OPTIONS 放行給
+   CORSMiddleware，並加回歸測試（43 passing）。
+2. `playwright.config.ts` 的 `executablePath` 誤放在 `use` 層（無效選項），
+   移入 `launchOptions`。
+3. 前端 3 處 Amadeus 殘留（結果來源標籤、價格趨勢圖線、頁尾）改 Kiwi.com。
+實測結果：health 200／token 403／非法參數 422×5／history 無 DB 503／
+rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）／
+查詢中 health 12ms 不阻塞／E2E chromium 4/4 綠。
 
 ---
 
@@ -60,10 +74,10 @@ MCP 端點（`https://mcp.kiwi.com/`，免金鑰、原生 TWD、已實測 TPE→
 - [x] `pytest` 全綠（19）
 - [x] Code review：`main.py` 不 import `fast_flights` / `httpx`（全封裝）
 - [x] 無硬編碼金鑰
-- [ ] 🧑 `/api/search` 回傳 `source: fast_flights`、每筆 `currency` 為 TWD（目視原始 JSON）
-- [ ] 🧑 切換實測：暫時弄壞 fast-flights → 回 `source: kiwi` → 還原
-- [ ] 🧑 非法參數 422；`docker build` 且容器內可查詢
-- [ ] 🧑 阻塞實測：`/api/search` 查詢中同時打 `/api/health` 必須 <1 秒回應
+- [ ] 🧑 `/api/search` 回傳 `source: fast_flights`、每筆 `currency` 為 TWD（沙箱網路擋 Google，僅能於部署後驗；kiwi 路徑已驗 TWD ✓）
+- [x] 切換實測：fast-flights 失敗 → 回 `source: kiwi` ✓（2026-07-07 沙箱實測，正式環境部署後再驗一次）
+- [x] 非法參數 422 ✓（5 種情境實測）；🧑 `docker build` 容器內查詢（沙箱無 docker，部署時驗）
+- [x] 阻塞實測：查詢中 `/api/health` 12ms 回應 ✓（2026-07-07）
 - [ ] `git tag phase-1-done`
 
 ---
@@ -105,7 +119,7 @@ MCP 端點（`https://mcp.kiwi.com/`，免金鑰、原生 TWD、已實測 TPE→
 - [x] pytest：8 熔斷情境 + 8 Phase 3 情境（共 41 tests passing）
 
 **查核點**
-- [ ] 🧑 熔斷實測、重啟狀態一致、配額停用、token/rate limit、節流、排程
+- [ ] 🧑 熔斷實測、重啟狀態一致、配額停用、節流、排程（token 403 ✓、rate limit 429 ✓ 已於 2026-07-07 實測）
 - [x] ~~附錄 F 閘門判定~~ 作廢（Amadeus 停用；Kiwi 無 test/production 之分）
 - [ ] `git tag phase-3-done`
 
@@ -163,6 +177,5 @@ MCP 端點（`https://mcp.kiwi.com/`，免金鑰、原生 TWD、已實測 TPE→
 | 優先 | 項目 | 阻擋 |
 |---|---|---|
 | 🔴 高 | 自 Supabase Dashboard 取得 `SUPABASE_SERVICE_KEY` | Phase 2 驗收、Phase 3 排程 |
-| 🟡 中 | 產生 API Token | Phase 3 API 防護 |
 
 已完成（2026-07-07）：Supabase 專案 `flight-search` 建立＋schema v1–v3 套用＋RLS 啟用；`airports.csv` 下載＋`airports.json` 產出（275.7 KB）；API Token 產生；備援 provider Amadeus → Kiwi.com 轉向（42 tests passing）。

@@ -106,6 +106,28 @@ def test_api_health_exempt_from_token(monkeypatch):
     assert resp.status_code == 200
 
 
+def test_cors_preflight_exempt_from_token(monkeypatch):
+    """CORS preflight (OPTIONS) 不帶自訂標頭，token 中介軟體必須放行給 CORSMiddleware。"""
+    monkeypatch.setenv("API_TOKEN", "super-secret")
+
+    from fastapi.testclient import TestClient
+    from main import app
+
+    with TestClient(app) as tc:
+        resp = tc.options(
+            f"/api/search?origin=TPE&dest=NRT&date={tomorrow}",
+            headers={
+                "Origin": "http://localhost:3000",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "x-api-token",
+            },
+        )
+    assert resp.status_code == 200
+    # 測試環境 ALLOWED_ORIGINS 預設 "*"；部署時為具體 Pages 網域
+    assert resp.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
+    assert "GET" in resp.headers.get("access-control-allow-methods", "")
+
+
 # ── Rate limit ────────────────────────────────────────────────────────────────
 
 def test_rate_limit_returns_429():
