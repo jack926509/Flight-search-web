@@ -172,3 +172,63 @@ async def test_raises_when_all_fail_and_no_stale():
         cs = CachedSearch(chain, db)
         with pytest.raises(AllProvidersFailed):
             await cs.search("TPE", "NRT", "2026-10-01", 1, "economy")
+
+
+# ── 7. DB 全掛時搜尋必須退化為直查（2026-07-07 韌性複審新增） ────────────────
+
+@pytest.mark.asyncio
+async def test_db_read_failure_degrades_to_live_query():
+    """快取讀取拋錯 → 視為 miss，照常回 provider 結果，不得 500。"""
+    chain = MagicMock(spec=SearchChain)
+    chain.search = AsyncMock(return_value=_live_result())
+    db = MagicMock()
+
+    with (
+        patch("services.cached_search.repo.get_cached", new_callable=AsyncMock,
+              side_effect=RuntimeError("db down")),
+        patch("services.cached_search.repo.set_cache", new_callable=AsyncMock,
+              side_effect=RuntimeError("db down")),
+    ):
+        cs = CachedSearch(chain, db)
+        result = await cs.search("TPE", "NRT", "2026-10-01", 1, "economy")
+
+    assert result.source == "fast_flights"
+    assert len(result.flights) == 1
+    chain.search.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_db_write_failure_still_returns_result():
+    """provider 已成功、僅快取／歷史寫入失敗 → 結果照常回傳。"""
+    chain = MagicMock(spec=SearchChain)
+    chain.search = AsyncMock(return_value=_live_result())
+    db = MagicMock()
+
+    with (
+        patch("services.cached_search.repo.get_cached", new_callable=AsyncMock,
+              return_value=None),
+        patch("services.cached_search.repo.set_cache", new_callable=AsyncMock,
+              side_effect=RuntimeError("db down")),
+    ):
+        cs = CachedSearch(chain, db)
+        result = await cs.search("TPE", "NRT", "2026-10-01", 1, "economy")
+
+    assert result.source == "fast_flights"
+
+
+@pytest.mark.asyncio
+async def test_stale_read_failure_reraises_all_providers_failed():
+    """providers 全掛＋stale 讀取也掛 → 必須是 AllProvidersFailed（503），不得 500。"""
+    chain = MagicMock(spec=SearchChain)
+    chain.search = AsyncMock(side_effect=AllProvidersFailed("all down"))
+    db = MagicMock()
+
+    with (
+        patch("services.cached_search.repo.get_cached", new_callable=AsyncMock,
+              return_value=None),
+        patch("services.cached_search.repo.get_stale_cached", new_callable=AsyncMock,
+              side_effect=RuntimeError("db down")),
+    ):
+        cs = CachedSearch(chain, db)
+        with pytest.raises(AllProvidersFailed):
+            await cs.search("TPE", "NRT", "2026-10-01", 1, "economy")

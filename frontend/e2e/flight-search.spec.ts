@@ -120,6 +120,97 @@ test.describe("FlightSearch E2E", () => {
     }
   });
 
+  // ── (d) Multi-leg（外站／四腿）mode ──────────────────────────────────────
+
+  test("(d) multi-leg mode searches all legs and shows total", async ({
+    page,
+  }) => {
+    // URL 直開多段模式（2 段），應自動查詢
+    await page.goto(
+      `/?mode=multi&legs=TPE-NRT%402026-08-06%7CNRT-TPE%402026-08-06&adults=1&cabin=economy`
+        .replace(/2026-08-06/g, TEST_DATE)
+    );
+
+    // 兩段都要載入完成（出現可選報價，而非骨架屏）
+    await page
+      .getByLabel("第 1 段結果")
+      .locator("[role='option']")
+      .first()
+      .waitFor({ timeout: 30_000 });
+    await page
+      .getByLabel("第 2 段結果")
+      .locator("[role='option']")
+      .first()
+      .waitFor({ timeout: 30_000 });
+
+    // 總價列出現且金額 > 0
+    const totalBar = page.getByLabel("多段總價");
+    await totalBar.waitFor({ timeout: 30_000 });
+    const totalText = (await totalBar.textContent()) ?? "";
+    const m = totalText.match(/NT\$\s*([\d,]+)/);
+    expect(m).toBeTruthy();
+    const total = parseInt(m![1].replace(/,/g, ""), 10);
+    expect(total).toBeGreaterThan(0);
+
+    // 每段各自的最便宜報價相加應等於預設總價
+    const legCheapest = async (label: string) => {
+      const section = page.getByLabel(label);
+      const first = section.locator("[role='option']").first();
+      const t = (await first.textContent()) ?? "";
+      const pm = t.match(/NT\$\s*([\d,]+)/);
+      return pm ? parseInt(pm[1].replace(/,/g, ""), 10) : 0;
+    };
+    const sum = (await legCheapest("第 1 段結果")) + (await legCheapest("第 2 段結果"));
+    expect(total).toBe(sum);
+
+    // 點選第 1 段的第二個報價 → 總價跟著變
+    const secondOption = page
+      .getByLabel("第 1 段結果")
+      .locator("[role='option']")
+      .nth(1);
+    if (await secondOption.count()) {
+      await secondOption.click();
+      await page.waitForTimeout(200);
+      const newText = (await totalBar.textContent()) ?? "";
+      const nm = newText.match(/NT\$\s*([\d,]+)/);
+      expect(nm).toBeTruthy();
+      const newTotal = parseInt(nm![1].replace(/,/g, ""), 10);
+      expect(newTotal).toBeGreaterThanOrEqual(total); // 第二便宜 ≥ 最便宜
+    }
+  });
+
+  // ── (e) 外站組合比價 date-matrix mode ────────────────────────────────────
+
+  test("(e) combo mode builds date matrix with best total", async ({ page }) => {
+    test.setTimeout(120_000); // 6 個日期查詢（並發 2）串行於 fast-flights 節流之後
+
+    await page.goto(
+      `/?mode=combo&a=TPE-NRT%40${TEST_DATE}~1&b=NRT-TPE%40${TEST_DATE}~1&adults=1&cabin=economy`
+    );
+
+    // 矩陣表格出現
+    await page.getByLabel("組合價格矩陣").waitFor({ timeout: 30_000 });
+
+    // 等全部查詢完成 → 出現最佳組合列
+    const best = page.getByLabel("最佳組合");
+    await best.waitFor({ timeout: 90_000 });
+    const bestText = (await best.textContent()) ?? "";
+    const m = bestText.match(/NT\$\s*([\d,]+)/);
+    expect(m).toBeTruthy();
+    expect(parseInt(m![1].replace(/,/g, ""), 10)).toBeGreaterThan(0);
+
+    // 不可行組合（回程早於去程）應以「—」顯示
+    const matrix = page.getByLabel("組合價格矩陣");
+    expect((await matrix.textContent()) ?? "").toContain("—");
+
+    // 點一個有價格的格子 → 出現組合明細（兩段航班）
+    await matrix.locator("button:not([disabled])").first().click();
+    await page.getByLabel("組合明細").waitFor({ timeout: 5_000 });
+    const detail = (await page.getByLabel("組合明細").textContent()) ?? "";
+    expect(detail).toContain("段1");
+    expect(detail).toContain("段2");
+  });
+
   // ── 375px — no horizontal scroll ─────────────────────────────────────────
 
   test("375px viewport — no horizontal scrollbar", async ({ page }) => {
@@ -129,5 +220,14 @@ test.describe("FlightSearch E2E", () => {
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2); // 2px tolerance
+  });
+
+  test("375px multi-leg mode — no horizontal scrollbar", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/?mode=multi");
+
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 2);
   });
 });

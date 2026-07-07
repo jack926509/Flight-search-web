@@ -17,7 +17,7 @@
 | 4 | 前端 UI | ✅ | — | 🔶 | 🔶 待人工驗收 |
 | 5 | 部署＋E2E＋驗收 | ✅ E2E | ⬜ | ⬜ | ⬜ 未開始 |
 
-**目前測試總數：43 passing**（Phase 1: 20 + Phase 2: 6 + Phase 3: 17）
+**目前測試總數：46 passing**（Phase 1: 20 + Phase 2: 9 + Phase 3: 17）
 
 **2026-07-06 全系統程式碼審查**：修正節流自動恢復、`/api/history` rate limit、
 token 時序攻擊防護、UTC 日期偏移、Playwright 依賴缺失等 12 項問題。
@@ -45,6 +45,76 @@ MCP 端點（`https://mcp.kiwi.com/`，免金鑰、原生 TWD、已實測 TPE→
 實測結果：health 200／token 403／非法參數 422×5／history 無 DB 503／
 rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）／
 查詢中 health 12ms 不阻塞／E2E chromium 4/4 綠。
+
+**2026-07-07 API 引用＋UX/UI 全面複審（第三輪）**：Kiwi 官方 MCP schema 逐欄比對
+（`flyFrom`/`flyTo`/`departureDate` dd/mm/yyyy/`cabinClass` M-W-C-F/`currency`）＋
+真實 TPE→NRT 呼叫驗證回傳欄位（15 筆、TWD、`segments[].carrier/flightNumber`
+與 parser 完全一致）。真瀏覽器截圖逐一目視 9 個畫面狀態，發現並修復 3 個問題：
+1. 🔴 **中文機場搜尋完全無效**——airports.json 3274 筆零中文，輸入「東京」
+   下拉不會出現。修復：`build-airports.mjs` 加入 105 個主要機場中文別名
+   （台日韓港澳中東南亞美加歐澳，繁簡並收），Fuse 搜尋鍵加 `zh`，下拉顯示
+   「東京（Narita）」格式；JSON 278.3 KB 仍低於 300 KB 上限。
+2. **前端 fetch 無逾時**——後端若掛住（非拒絕連線），使用者永遠停在骨架屏。
+   修復：`/api/search` 45s、`/api/history` 15s `AbortSignal.timeout` 兜底。
+3. **趨勢圖 fetch 拋錯未接**——斷網時 unhandled rejection。修復：try/catch
+   靜默回空陣列。
+目視確認畫面：首頁／中文 autocomplete（東京→HND+NRT）／loading 骨架屏／
+結果卡片＋排序／趨勢累積中／空結果＋前後一天鈕／錯誤＋重試＋狀態燈轉紅／
+手機 375px 首頁＋結果頁。E2E 4/4 綠（空結果路徑本輪起由 stub 真實觸發）、
+tsc 無錯、後端 43 tests 維持全綠。
+
+**2026-07-07 異常處理複審（第四輪）＋處理手冊**：新增 **`TROUBLESHOOTING.md`**
+（所有異常狀況的症狀→原因→自動恢復→手動解法＋快速診斷指令）。
+以「填錯 SUPABASE_URL」實測 DB 死亡情境，發現並修復 5 個韌性問題：
+1. 🔴 **DB 掛掉會拖垮搜尋**——`cached_search` 快取讀寫無錯誤保護，Supabase
+   故障時 `/api/search` 直接 500（即使兩個資料源都正常）。修復：讀取失敗視為
+   miss、寫入失敗 non-fatal、全部套 8s 硬性逾時；DB 死亡實測搜尋照常回
+   `source=kiwi`（9.8s）。
+2. 🔴 **`ping_db` 無逾時**——DB 連線黑洞時 `/api/health` 掛住 >10s，監控會
+   誤判整個服務死亡。修復：5s 逾時；實測 health 0.3s 回 `db:false`。
+3. `/api/history` DB 故障回 500／掛住 → 改 8s 逾時＋503。
+4. Kiwi 配額檢查無逾時（DB 掛住卡死備援路徑）→ 8s 逾時兜底。
+5. 排程 `has_history_today` 例外被 `gather(return_exceptions=True)` 靜默吞掉
+   → 移入 try 塊確保留 log。
+前端異常體驗同步強化：錯誤訊息全面中文化＋行動指引（連線逾時／無法連線／
+Token 不符／太頻繁／查詢條件有誤／兩資料源皆失效，各自對應解法）；
+右上系統狀態燈改接真實 `/api/health`（每 60s 輪詢）三態顯示：
+🟢正常／🟡部分異常（DB 離線，目視已驗）／🔴異常（後端無回應，目視已驗）。
+新增 3 個 DB 韌性回歸測試（46 passing）、E2E 4/4 綠、tsc 無錯。
+
+**2026-07-07 新功能：多段行程查詢（外站票／四腿票）＋全案盤點（第五輪）**。
+研析結論：外站／四腿實務上為分段購票（各段獨立機票），聯程四腿票價無公開
+API 可查；Kiwi MCP 僅支援單程/來回、fast-flights multi-city 不穩定——故以
+「2–4 段獨立單程並行查詢＋可選報價＋總價加總」實作，每段完整重用既有
+快取／雙 provider failover／熔斷／stale 兜底，**後端零改動**。前端新增：
+- 查詢模式切換：單程查詢｜多段行程（外站・四腿）
+- `useMultiSearch` hook：2–4 段管理、各段獨立狀態（並行查詢、逐段顯示）、
+  報價點選、總價計算、URL 深連結（`?mode=multi&legs=TPE-NRT@日期|…`）自動查詢
+- `MultiSearchCard`：航段增刪（新段自動帶上一段目的地）、共用人數/艙等
+- `MultiLegResults`：各段 price 排序可選清單（radio 樣式）、來源標籤、
+  段級錯誤重試／空結果／stale 標註、總價列（未報價段提示不計入）、
+  分段購票風險提示（行李重掛、誤機自負、簽證、順序使用）
+盤點結果：後端 46 tests 綠（零改動）、tsc 無錯、bundle 122KB（<150KB 目標，
+僅 +4KB）、無 TODO/console.log 殘留、E2E 6/6 綠（新增 (d) 多段總價驗證＋
+375px 多段無橫捲）；目視確認：多段表單／雙段結果＋總價 9,682／點選第二報價
+總價變 9,850／手機版逐段載入＋輸入框寬度修復（發現後已修）。
+
+**2026-07-07 外站票飛法強化：日期組合比價矩陣（第六輪）**。第三查詢模式
+「外站組合比價」：段1（定位航段）＋段2（外站出發段）各設基準日期＋彈性
+±0–3 天，把所有日期組合的總價排成矩陣，一眼比出「哪天去＋哪天回」最低。
+流量設計（配合既有防護）：查詢數＝兩段日期數相加（線性，上限 7+7=14 次
+< rate limit 20/min）、前端並發 2 佇列（fast-flights Semaphore 之後不逾時）、
+矩陣逐格填入＋進度指示、已查日期吃快取、順便累積價格歷史。實作：
+- `useComboSearch`：日期展開（過濾今天以前）、worker pool、搜尋當下條件
+  快照（改表單不弄髒已顯示矩陣）、URL 深連結
+  （`?mode=combo&a=TPE-BKK@日期~2&b=BKK-TPE@日期~2`）自動查詢
+- `ComboSearchCard`：兩段設定（含用途提示例）、彈性天數選單、查詢次數預告
+- `ComboMatrix`：總價矩陣（列＝段1日期、欄＝段2日期）、段2早於段1標
+  「—」不可行、無班／✕失敗標記、最低組合綠標＋🏆摘要列、點格看兩段明細、
+  外站票 no-show 風險提示
+盤點：後端 46 tests 綠（零改動）、tsc 無錯、bundle 125KB（<150KB）、
+E2E 7/7 綠（新增 (e) 矩陣＋最佳組合＋不可行格＋明細驗證）、桌機／手機
+目視確認（手機矩陣容器內橫捲、頁面無橫捲）。
 
 ---
 
@@ -101,7 +171,7 @@ rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）
 - [ ] 🧑 同查詢連打兩次：第一次 `fast_flights`（3–8s）、第二次 `cache`（<1s）
 - [ ] 🧑 改某筆 `expires_at` 為過去＋弄壞兩 provider → 回 `stale: true`
 - [ ] 🧑 `/api/history` 有資料
-- [ ] 🧑 health 保活實測：填錯 `SUPABASE_URL` → `db` 欄位轉 false
+- [x] health 保活實測：填錯 `SUPABASE_URL` → `db: false`（0.3s 回應）✓；DB 死亡時搜尋降級直查照常成功 ✓（2026-07-07 第四輪實測）
 - [ ] `git tag phase-2-done`
 
 ---
@@ -139,9 +209,9 @@ rate limit 20-min 準點 429／failover fast_flights→kiwi 200（source=kiwi）
 - [x] 首屏 JS 118 KB（目標 < 150 KB gzip）
 
 **查核點**
-- [x] 下載 `airports.csv` → `npm run build:airports`：JSON 275.7 KB（3274 機場，新增 `scheduled_service=yes` 過濾）；NRT/TPE/FUK/WAW 皆在；🧑 「東京」「Tokyo」中英文模糊搜尋待目視確認
-- [ ] 🧑 完整搜尋流程目視；URL 直開自動搜尋
-- [ ] 🧑 四狀態逐一目視（後端配合模擬）
+- [x] 下載 `airports.csv` → `npm run build:airports`：JSON 278.3 KB（3274 機場＋105 中文別名）；NRT/TPE/FUK/WAW 皆在；「東京」→HND+NRT 中文模糊搜尋已目視確認 ✓（2026-07-07 第三輪）
+- [x] 完整搜尋流程目視；URL 直開自動搜尋 ✓（2026-07-07 真瀏覽器截圖）
+- [x] 四狀態逐一目視 ✓（loading 骨架屏／結果卡片／空結果＋前後一天鈕／錯誤＋重試；stale 黃色警示由測試覆蓋，正式環境再目視）
 - [ ] 🧑 Lighthouse mobile Perf ≥ 90、A11y ≥ 95
 - [ ] `git tag phase-4-done`
 
