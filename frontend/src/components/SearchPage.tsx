@@ -6,8 +6,11 @@ import SearchCard from "./SearchCard";
 import ResultsSection from "./ResultsSection";
 import MultiSearchCard from "./MultiSearchCard";
 import MultiLegResults from "./MultiLegResults";
+import ComboSearchCard from "./ComboSearchCard";
+import ComboMatrix from "./ComboMatrix";
 import { useSearch } from "@/hooks/useSearch";
 import { useMultiSearch } from "@/hooks/useMultiSearch";
+import { useComboSearch } from "@/hooks/useComboSearch";
 import { useHealth } from "@/hooks/useHealth";
 
 export default function SearchPage() {
@@ -24,9 +27,11 @@ export default function SearchPage() {
   } = useSearch();
 
   const multi = useMultiSearch();
+  const combo = useComboSearch();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"single" | "multi">(
-    searchParams.get("mode") === "multi" ? "multi" : "single"
+  const urlMode = searchParams.get("mode");
+  const [mode, setMode] = useState<"single" | "multi" | "combo">(
+    urlMode === "multi" ? "multi" : urlMode === "combo" ? "combo" : "single"
   );
 
   const health = useHealth();
@@ -87,6 +92,19 @@ export default function SearchPage() {
           >
             多段行程（外站・四腿）
           </button>
+          <button
+            role="tab"
+            aria-selected={mode === "combo"}
+            type="button"
+            onClick={() => setMode("combo")}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-colors ${
+              mode === "combo"
+                ? "bg-[#0B5FFF] text-white"
+                : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            外站組合比價
+          </button>
         </div>
 
         {mode === "single" ? (
@@ -120,7 +138,7 @@ export default function SearchPage() {
               onGoDate={goDate}
             />
           </>
-        ) : (
+        ) : mode === "multi" ? (
           <>
             <MultiSearchCard
               legs={multi.legs}
@@ -144,6 +162,31 @@ export default function SearchPage() {
               unpricedCount={multi.unpricedCount}
               onRetryLeg={multi.retryLeg}
               onSelectFlight={multi.selectFlight}
+            />
+          </>
+        ) : (
+          <>
+            <ComboSearchCard
+              legA={combo.legA}
+              legB={combo.legB}
+              adults={combo.adults}
+              cabin={combo.cabin}
+              today={combo.today}
+              running={combo.running}
+              filled={combo.filled}
+              onLegAChange={combo.setLegA}
+              onLegBChange={combo.setLegB}
+              onAdultsChange={combo.setAdults}
+              onCabinChange={combo.setCabin}
+              onSubmit={combo.runSearch}
+            />
+
+            <ComboMatrix
+              snapshot={combo.snapshot}
+              resultsA={combo.resultsA}
+              resultsB={combo.resultsB}
+              running={combo.running}
+              progress={combo.progress}
             />
           </>
         )}

@@ -179,6 +179,38 @@ test.describe("FlightSearch E2E", () => {
     }
   });
 
+  // ── (e) 外站組合比價 date-matrix mode ────────────────────────────────────
+
+  test("(e) combo mode builds date matrix with best total", async ({ page }) => {
+    test.setTimeout(120_000); // 6 個日期查詢（並發 2）串行於 fast-flights 節流之後
+
+    await page.goto(
+      `/?mode=combo&a=TPE-NRT%40${TEST_DATE}~1&b=NRT-TPE%40${TEST_DATE}~1&adults=1&cabin=economy`
+    );
+
+    // 矩陣表格出現
+    await page.getByLabel("組合價格矩陣").waitFor({ timeout: 30_000 });
+
+    // 等全部查詢完成 → 出現最佳組合列
+    const best = page.getByLabel("最佳組合");
+    await best.waitFor({ timeout: 90_000 });
+    const bestText = (await best.textContent()) ?? "";
+    const m = bestText.match(/NT\$\s*([\d,]+)/);
+    expect(m).toBeTruthy();
+    expect(parseInt(m![1].replace(/,/g, ""), 10)).toBeGreaterThan(0);
+
+    // 不可行組合（回程早於去程）應以「—」顯示
+    const matrix = page.getByLabel("組合價格矩陣");
+    expect((await matrix.textContent()) ?? "").toContain("—");
+
+    // 點一個有價格的格子 → 出現組合明細（兩段航班）
+    await matrix.locator("button:not([disabled])").first().click();
+    await page.getByLabel("組合明細").waitFor({ timeout: 5_000 });
+    const detail = (await page.getByLabel("組合明細").textContent()) ?? "";
+    expect(detail).toContain("段1");
+    expect(detail).toContain("段2");
+  });
+
   // ── 375px — no horizontal scroll ─────────────────────────────────────────
 
   test("375px viewport — no horizontal scrollbar", async ({ page }) => {
