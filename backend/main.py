@@ -87,6 +87,13 @@ app.add_middleware(
 
 _IATA_RE = re.compile(r"^[A-Z]{3}$")
 _ROUTE_RE = re.compile(r"^[A-Z]{3}-[A-Z]{3}$")
+_SECURITY_HEADERS = {
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
 
 
 class ErrorDetail(BaseModel):
@@ -116,6 +123,14 @@ async def api_token_middleware(request: Request, call_next):
                 },
             )
     return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers_middleware(request: Request, call_next):
+    response = await call_next(request)
+    for key, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(key, value)
+    return response
 
 
 @app.exception_handler(Exception)

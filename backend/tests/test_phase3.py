@@ -104,6 +104,8 @@ def test_api_health_exempt_from_token(monkeypatch):
     with TestClient(app) as tc:
         resp = tc.get("/api/health")
     assert resp.status_code == 200
+    assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["x-frame-options"] == "DENY"
 
 
 def test_cors_preflight_exempt_from_token(monkeypatch):
@@ -126,6 +128,20 @@ def test_cors_preflight_exempt_from_token(monkeypatch):
     # 測試環境 ALLOWED_ORIGINS 預設 "*"；部署時為具體 Pages 網域
     assert resp.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
     assert "GET" in resp.headers.get("access-control-allow-methods", "")
+
+
+def test_api_token_403_has_security_headers(monkeypatch):
+    monkeypatch.setenv("API_TOKEN", "super-secret")
+
+    from fastapi.testclient import TestClient
+    from main import app
+
+    with TestClient(app) as tc:
+        resp = tc.get(f"/api/search?origin=TPE&dest=NRT&date={tomorrow}")
+
+    assert resp.status_code == 403
+    assert resp.headers["x-content-type-options"] == "nosniff"
+    assert resp.headers["x-frame-options"] == "DENY"
 
 
 # ── Rate limit ────────────────────────────────────────────────────────────────

@@ -1,5 +1,4 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || "";
 
 export interface Airport {
@@ -43,6 +42,12 @@ function authHeaders(): Record<string, string> {
   return API_TOKEN ? { "X-API-Token": API_TOKEN } : {};
 }
 
+function apiUrl(path: string): URL {
+  if (API_URL) return new URL(`${API_URL}${path}`);
+  if (typeof window !== "undefined") return new URL(path, window.location.origin);
+  return new URL(path, "http://localhost:8000");
+}
+
 /** 依 HTTP 狀態碼與後端錯誤內容，轉成使用者看得懂、知道怎麼辦的中文訊息 */
 function friendlyHttpError(status: number, detail: string): string {
   switch (status) {
@@ -77,7 +82,7 @@ export async function searchFlights(
   adults: number,
   cabin: string
 ): Promise<SearchResult> {
-  const url = new URL(`${API_URL}/api/search`);
+  const url = apiUrl("/api/search");
   url.searchParams.set("origin", origin);
   url.searchParams.set("dest", dest);
   url.searchParams.set("date", date);
@@ -119,7 +124,7 @@ export interface HealthStatus {
 /** 打 /api/health（免 token）。失敗回 ok:false，不拋錯 */
 export async function fetchHealth(): Promise<HealthStatus> {
   try {
-    const resp = await fetch(`${API_URL}/api/health`, {
+    const resp = await fetch(apiUrl("/api/health").toString(), {
       cache: "no-store",
       signal: AbortSignal.timeout(5_000),
     });
@@ -135,7 +140,7 @@ export async function fetchPriceHistory(
   route: string,
   days = 90
 ): Promise<PricePoint[]> {
-  const url = new URL(`${API_URL}/api/history`);
+  const url = apiUrl("/api/history");
   url.searchParams.set("route", route);
   url.searchParams.set("days", String(days));
 

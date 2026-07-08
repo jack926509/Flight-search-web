@@ -9,9 +9,12 @@
 目前後端：
 
 - Project：`untitled`（ID `6a4c6b637e05aa801c1ab360`）
-- Service：`flight-search-web`（ID `6a4c6b717e05aa801c1ab366`）
-- URL：`https://flight-search-web.zeabur.app`
-- 已驗證：`/api/health` 回 200，`db: true`，`fast_flights` / `kiwi` 均 reachable。
+- Service：`flight-search-api`（ID `6a4d0ef2c2881a93656dfc46`）
+- URL：`https://flight-search-api.zeabur.app`
+- 最新 deployment：`6a4e5bfdd5520eae64fa38dc`
+- 已驗證（2026-07-08）：`/api/health` 回 200，`db: true`，`fast_flights` / `kiwi` 均 reachable；direct API 與 Cloudflare proxy 皆有安全標頭。
+
+> 注意：Zeabur 另有舊服務 `flight-search-web`（ID `6a4c6b717e05aa801c1ab366`）。該服務可能被 Git 自動部署成 static，不作為正式 API 來源。
 
 依序在 Zeabur → Service → Environment Variables 設定：
 
@@ -44,18 +47,23 @@
 
 - Project：`flight-search-web`
 - Production URL：`https://flight-search-web-29x.pages.dev`
-- 最新部署：`https://3c752776.flight-search-web-29x.pages.dev`
-- 部署方式：Wrangler Direct Upload（本機以 `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_API_TOKEN` build 後上傳 `out/`）
+- 最新部署：`https://68df4ee8.flight-search-web-29x.pages.dev`（commit `185633b`，含 `/api/*` Pages Function proxy）
+- 部署方式：Wrangler Direct Upload（`npm run build` 產出 `out/`，並一併部署 `functions/` 作為 `/api/*` proxy）
 - 已驗證：首頁 HTTP 200，HTML title 為 `FlightSearch — 機票快速搜尋`，375px Playwright 煙霧測試通過。
 
 Build command：`npm run build`　Output directory：`out`
 
+Cloudflare Pages production 環境變數：
+
 | 變數 | 值 | 注意 |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | Zeabur 後端網域（結尾不加 `/`） | build 時打包進 JS |
-| `NEXT_PUBLIC_API_TOKEN` | 與後端 `API_TOKEN` 相同 | ⚠ 靜態輸出＝公開可見，僅擋無腦掃描；真正防護靠後端 rate limit + CORS |
+| `FLIGHT_SEARCH_API_URL` | `https://flight-search-api.zeabur.app` | Pages Function 伺服器端變數，不會打包進 JS |
+| `FLIGHT_SEARCH_API_TOKEN` | 與 Zeabur 後端 `API_TOKEN` 相同 | Pages Function 伺服器端變數，不會公開到瀏覽器 |
+| `NEXT_PUBLIC_API_URL` | 留空 | production 走同網域 `/api/*` proxy |
+| `NEXT_PUBLIC_API_TOKEN` | 留空 | 不再把 token 打包進瀏覽器 JS |
 
-改任何 `NEXT_PUBLIC_*` 變數後必須 **重新 build**（靜態輸出，變數在 build 時固化）。
+本機開發可在 `frontend/.env.local` 設 `NEXT_PUBLIC_API_URL=http://localhost:8000` 直連本機後端。
+改 `NEXT_PUBLIC_*` 變數後必須 **重新 build**（靜態輸出，變數在 build 時固化）；改 `FLIGHT_SEARCH_*` 則重新部署 Pages Function 即可。
 
 ## 3. 本機開發 / E2E（不進任何後台）
 
@@ -66,9 +74,21 @@ Build command：`npm run build`　Output directory：`out`
 
 ## 4. 部署順序（變數相依關係）
 
-1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` 已套用、RLS 已啟用）
+1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` + `schema_v4.sql` 已套用、RLS 已啟用；security/performance advisors 0 筆）
 2. ~~`openssl rand -hex 24` 產生 `API_TOKEN`~~ ✅ 已完成並設於 Zeabur
 3. ~~Zeabur 部署後端~~ ✅ 已完成（Docker / FastAPI / uvicorn）
-4. ~~Cloudflare Pages 部署前端~~ ✅ 已完成
+4. ~~Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 部署前端與 `functions/` proxy~~ ✅ 已完成
 5. ~~回 Zeabur 把 `ALLOWED_ORIGINS` 改成 Pages 網域 → 重啟~~ ✅ 已完成
-6. UptimeRobot 打 `https://flight-search-web.zeabur.app/api/health`（5 分鐘）⬜ 待設定
+6. UptimeRobot 打 `https://flight-search-api.zeabur.app/api/health`（5 分鐘）⬜ 待設定
+
+## 5. UptimeRobot
+
+建立 HTTP(s) monitor：
+
+| 欄位 | 值 |
+|---|---|
+| URL | `https://flight-search-api.zeabur.app/api/health` |
+| Interval | 5 minutes |
+| Expected status | 200 |
+
+`/api/health` 免 token，會同時 ping Supabase，能避免 Supabase Free 專案閒置暫停。

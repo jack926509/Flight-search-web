@@ -23,7 +23,7 @@
 |---|---|---|
 | 連線逾時：伺服器可能正在忙碌或喚醒中 | 後端處理超過 45 秒（fast-flights 慢或服務剛喚醒） | 按「重試」。連續逾時見 [E3](#e3-後端服務無回應) |
 | 無法連線到伺服器 | 斷網、後端掛掉、或 CORS 設定錯誤 | 確認自己網路 → 仍失敗則看瀏覽器 Console：出現 `blocked by CORS policy` 見 [E1](#e1-cors-錯誤)；否則見 [E3](#e3-後端服務無回應) |
-| 授權失敗：前端 API Token 與後端不符 | 前端 build 時的 `NEXT_PUBLIC_API_TOKEN` ≠ 後端 `API_TOKEN` | 核對兩邊 Token 一致 → **重新 build 前端**（靜態輸出，變數在 build 時固化） |
+| 授權失敗：前端 API Token 與後端不符 | Cloudflare Pages Function 的 `FLIGHT_SEARCH_API_TOKEN` ≠ 後端 `API_TOKEN`；或本機開發時 `NEXT_PUBLIC_API_TOKEN` 不符 | production 核對 Cloudflare `FLIGHT_SEARCH_API_TOKEN`；本機才核對 `NEXT_PUBLIC_API_TOKEN` |
 | 查詢太頻繁，請等 1 分鐘後再試 | 觸發後端 rate limit（同 IP 每分鐘 20 次） | 等 1 分鐘。正常使用不會觸發；持續出現代表有掃描流量，屬防護正常運作 |
 | 查詢條件有誤 | 機場代碼非 3 大寫字母、日期格式錯或是過去日期、艙等不合法 | 依訊息括號內的細節修正輸入 |
 | 兩個航班資料來源暫時都無法使用 | fast-flights 與 Kiwi 同時失敗且無可用快取 | 稍後重試——熔斷器冷卻 5 分鐘後自動試探恢復。持續 30 分鐘以上見 [C 節](#c-資料來源provider層異常) |
@@ -140,8 +140,8 @@
 
 ### E2. 改了環境變數但前端行為沒變
 
-- **原因**：前端是靜態輸出，`NEXT_PUBLIC_*` 在 **build 時固化進 JS**。
-- **解決方法**：Cloudflare Pages 改完變數必須觸發 **Retry deployment / 重新 build**，純重啟無效。
+- **原因**：`NEXT_PUBLIC_*` 在 **build 時固化進 JS**；`FLIGHT_SEARCH_*` 是 Pages Function 伺服器端變數。
+- **解決方法**：改 `NEXT_PUBLIC_*` 必須重新 build；改 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` 後重新部署 Pages Function。production 正常情況下不需要 `NEXT_PUBLIC_API_TOKEN`。
 
 ### E3. 後端服務無回應
 
@@ -157,12 +157,22 @@
 2. 完全無回應 → [E3](#e3-後端服務無回應)；回 200 但 `db: false` → [D1](#d1-健康檢查-db-false)
 3. 恢復後確認前端搜尋一次成功即結案
 
+### E5. Cloudflare Pages `/api/*` proxy 異常
+
+- **症狀**：前端同網域 `/api/search` 回 `PROXY_NOT_CONFIGURED` 或 500。
+- **原因**：Cloudflare Pages Function 缺 `FLIGHT_SEARCH_API_TOKEN`，或 token 與 Zeabur 後端不一致。
+- **解決方法**：Cloudflare Pages → Settings → Environment variables 設：
+  - `FLIGHT_SEARCH_API_URL=https://flight-search-api.zeabur.app`
+  - `FLIGHT_SEARCH_API_TOKEN=<與 Zeabur API_TOKEN 相同>`
+  設完後重新部署 Pages。
+
 ---
 
 ## 附錄：快速診斷指令
 
 ```bash
 BACKEND=https://<zeabur-domain>
+FRONTEND=https://<pages-domain>
 TOKEN=<你的 API_TOKEN>
 
 # 1. 後端活著嗎？DB 正常嗎？熔斷器狀態？（免 token）
@@ -178,6 +188,9 @@ curl -si -X OPTIONS -H "Origin: https://<pages-domain>" \
   -H "Access-Control-Request-Method: GET" \
   -H "Access-Control-Request-Headers: x-api-token" \
   "$BACKEND/api/search" | head -12
+
+# 4. Cloudflare Pages proxy 是否正常（production 前端應打同網域 /api，瀏覽器不再持有 token）
+curl -s "$FRONTEND/api/health" | python3 -m json.tool
 ```
 
 `/api/health` 回應範例與判讀：
