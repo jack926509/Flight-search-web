@@ -1,6 +1,6 @@
 # Cloudflare GitHub 部署整理
 
-> 目標：Cloudflare 前端只保留一條正式部署路徑，從 GitHub `main` 分支自動建置。
+> 目標：Cloudflare 前端只保留一條正式部署路徑，由 Cloudflare Pages 內建 GitHub integration 從 GitHub `main` 分支自動建置。
 > 本檔只記設定，不存放任何 API token 或密鑰。
 
 ## 目前畫面判讀
@@ -9,8 +9,8 @@ Cloudflare「Workers 和 Pages」目前看到兩個同名項目：
 
 1. `flight-search-web` / `flight-search-web-29x.pages.dev`
    - 類型：Pages
-   - 狀態：可用
-   - 狀態：已保留為唯一正式前端，並由 GitHub Actions 部署。
+   - 狀態：已重建為 Cloudflare Pages 內建 GitHub 部署。
+   - GitHub source：`jack926509/Flight-search-web`
 
 2. `flight-search-web` / `jack926509/Flight-search-web`
    - 類型：Workers 項目，不是 Pages 前端站。
@@ -19,24 +19,23 @@ Cloudflare「Workers 和 Pages」目前看到兩個同名項目：
 
 ## 正式保留方案
 
-保留唯一 Cloudflare Pages 專案作為正式站，並由 GitHub Actions 自動部署：
+保留唯一 Cloudflare Pages 專案作為正式站，並由 Cloudflare Pages 內建 GitHub integration 自動部署：
 
 - GitHub repository：`jack926509/Flight-search-web`
 - Production branch：`main`
 - Cloudflare Pages project：`flight-search-web`
 - Cloudflare Pages domain：`flight-search-web-29x.pages.dev`
-- GitHub Actions workflow：`.github/workflows/cloudflare-pages.yml`
-- Workflow build root：`frontend`
-- Workflow build command：`npm ci` → `npm run build`
-- Workflow deploy command：`wrangler pages deploy out --project-name=flight-search-web --branch=main`
+- Cloudflare build root：`frontend`
+- Cloudflare build command：`npm run build`
+- Cloudflare output directory：`out`
 - Node.js version：`22`
 
 理由：
 
 - 本 repo 是 monorepo，前端專案實際在 `frontend/`。
 - `frontend/next.config.ts` 已設定 `output: "export"`，`npm run build` 會輸出靜態網站到 `frontend/out`。
-- push 到 GitHub `main` 後，GitHub Actions 會自動建置並部署到同一個 Cloudflare Pages 專案。
-- Cloudflare 畫面只保留一個正式前端 Pages，不另外建立第二個同名前端專案。
+- push 到 GitHub `main` 後，Cloudflare Pages 會直接從 GitHub repo 自動建置並部署。
+- Cloudflare 畫面會顯示 Git Provider = Yes，並顯示 `jack926509/Flight-search-web`。
 
 ## Cloudflare Pages 環境變數
 
@@ -49,13 +48,7 @@ Cloudflare「Workers 和 Pages」目前看到兩個同名項目：
 | `NEXT_PUBLIC_API_URL` | 留空 | Production 走同網域 `/api/*` |
 | `NEXT_PUBLIC_API_TOKEN` | 留空 | 不把 token 打包進瀏覽器 |
 
-Preview 環境可以沿用同樣的 `FLIGHT_SEARCH_API_URL`，但 `FLIGHT_SEARCH_API_TOKEN` 一樣要在 Cloudflare 後台用 secret 設定。
-
-GitHub repository secrets 需要設定：
-
-| Secret | 說明 |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | 給 GitHub Actions 使用的 Cloudflare API token，需具備 Pages deploy 權限 |
+Preview 環境沿用同樣的 `FLIGHT_SEARCH_API_URL` 與 `FLIGHT_SEARCH_API_TOKEN`。
 
 ## 舊 Direct Upload 專案處理
 
@@ -63,23 +56,25 @@ GitHub repository secrets 需要設定：
 
 刪除 Worker 後，完成以下驗收：
 
-1. Cloudflare Pages 專案 `flight-search-web` 最新 deployment 成功：`https://01e99737.flight-search-web-29x.pages.dev`。
+1. Cloudflare Pages 專案 `flight-search-web` 顯示 Git Provider = Yes。
 2. `https://flight-search-web-29x.pages.dev/` 首頁 HTTP 200。
 3. `https://flight-search-web-29x.pages.dev/api/health` HTTP 200，且可連到 Zeabur 後端。
 4. Zeabur `ALLOWED_ORIGINS` 已包含 `https://flight-search-web-29x.pages.dev`。
-5. GitHub Actions workflow 已建立：`.github/workflows/cloudflare-pages.yml`。
+5. GitHub `main` push 會觸發 Cloudflare Pages production deployment。
 
 以上完成後，Cloudflare 前端只剩一個正式 Pages 專案。
 
 ## 建置失敗最常見原因
 
-若 GitHub Actions 部署失敗，優先檢查：
+若 Cloudflare GitHub deployment 失敗，優先檢查：
 
-1. GitHub secret `CLOUDFLARE_API_TOKEN` 是否已設定。
-2. `frontend/package-lock.json` 是否和 `package.json` 同步。
-3. `frontend/functions/api/[[path]].js` 是否仍存在，否則 `/api/*` proxy 不會部署。
-4. Cloudflare Pages production 環境變數 `FLIGHT_SEARCH_API_TOKEN` 是否與 Zeabur `API_TOKEN` 相同。
-5. Zeabur `ALLOWED_ORIGINS` 是否允許 Pages domain。
+1. Cloudflare build root 是否為 `frontend`。
+2. Cloudflare build command 是否為 `npm run build`。
+3. Cloudflare output directory 是否為 `out`。
+4. `frontend/package-lock.json` 是否和 `package.json` 同步。
+5. `frontend/functions/api/[[path]].js` 是否仍存在，否則 `/api/*` proxy 不會部署。
+6. Cloudflare Pages production 環境變數 `FLIGHT_SEARCH_API_TOKEN` 是否與 Zeabur `API_TOKEN` 相同。
+7. Zeabur `ALLOWED_ORIGINS` 是否允許 Pages domain。
 
 ## 完成後的正式部署流程
 
@@ -89,4 +84,4 @@ GitHub repository secrets 需要設定：
 git push origin main
 ```
 
-Cloudflare Pages 會自動從 GitHub `main` 建置並發布。不要再用 Direct Upload 當正式流程，除非 GitHub 自動部署故障且需要臨時救援。
+Cloudflare Pages 會自動從 GitHub `main` 建置並發布。不要再用 Direct Upload 或 GitHub Actions Wrangler deploy 當正式流程，除非 Cloudflare GitHub integration 故障且需要臨時救援。

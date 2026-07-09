@@ -48,18 +48,18 @@
 - Project：`flight-search-web`
 - Production URL：`https://flight-search-web-29x.pages.dev`
 - 最新部署：`https://01e99737.flight-search-web-29x.pages.dev`
-- 正式部署方式：GitHub Actions 從 `jack926509/Flight-search-web` 的 `main` 分支部署到同一個 Cloudflare Pages 專案
+- 正式部署方式：Cloudflare Pages 內建 GitHub integration，從 `jack926509/Flight-search-web` 的 `main` 分支自動建置
 - GitHub 部署整理：見 [`CLOUDFLARE_GITHUB_DEPLOYMENT.md`](CLOUDFLARE_GITHUB_DEPLOYMENT.md)
 
-GitHub Actions build 設定：
+Cloudflare Pages GitHub build 設定：
 
 | 欄位 | 值 |
 |---|---|
 | Production branch | `main` |
-| Workflow | `.github/workflows/cloudflare-pages.yml` |
-| Working directory | `frontend` |
-| Build command | `npm ci` → `npm run build` |
-| Deploy command | `wrangler pages deploy out --project-name=flight-search-web --branch=main` |
+| Git repository | `jack926509/Flight-search-web` |
+| Root directory | `frontend` |
+| Build command | `npm run build` |
+| Output directory | `out` |
 
 Cloudflare Pages production 環境變數：
 
@@ -70,16 +70,10 @@ Cloudflare Pages production 環境變數：
 | `NEXT_PUBLIC_API_URL` | 留空 | production 走同網域 `/api/*` proxy |
 | `NEXT_PUBLIC_API_TOKEN` | 留空 | 不再把 token 打包進瀏覽器 JS |
 
-GitHub Actions repository secret：
-
-| Secret | 用途 |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | 讓 GitHub Actions 呼叫 Cloudflare Pages deploy |
-
 本機開發可在 `frontend/.env.local` 設 `NEXT_PUBLIC_API_URL=http://localhost:8000` 直連本機後端。
 改 `NEXT_PUBLIC_*` 變數後必須 **重新 build**（靜態輸出，變數在 build 時固化）；改 `FLIGHT_SEARCH_*` 則重新部署 Pages Function 即可。
 
-> 2026-07-09 整理：Cloudflare Pages 清單只有一個正式前端 `flight-search-web-29x.pages.dev`；截圖中另一個同名項目是 Worker，不是 Pages 前端，且沒有使用中路由，已刪除。正式方向是保留唯一 Pages，並由 GitHub Actions 自動部署。
+> 2026-07-09 整理：Cloudflare Pages `flight-search-web` 已重建為內建 GitHub integration，Git Provider = Yes，連線 `jack926509/Flight-search-web`；截圖中另一個同名 Worker 已刪除。正式方向是保留唯一 Pages，並由 Cloudflare 從 GitHub `main` 自動部署。
 
 ## 3. 本機開發 / E2E（不進任何後台）
 
