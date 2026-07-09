@@ -85,3 +85,13 @@ git push origin main
 ```
 
 Cloudflare Pages 會自動從 GitHub `main` 建置並發布。不要再用 Direct Upload 或 GitHub Actions Wrangler deploy 當正式流程，除非 Cloudflare GitHub integration 故障且需要臨時救援。
+
+## 2026-07-09 驗收紀錄
+
+- Cloudflare Pages project `flight-search-web` 已重建為 GitHub provider。
+- GitHub source：`jack926509/Flight-search-web`
+- Production branch：`main`
+- Build root：`frontend`
+- Build command：`npm run build`
+- Output directory：`out`
+- Production / Preview env var keys：`FLIGHT_SEARCH_API_URL`、`FLIGHT_SEARCH_API_TOKEN`
