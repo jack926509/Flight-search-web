@@ -46,17 +46,26 @@
 目前前端：
 
 - Project：`flight-search-web`
-- Production URL：`https://flight-search-web-29x.pages.dev`
-- 最新部署：`https://68df4ee8.flight-search-web-29x.pages.dev`（commit `185633b`，含 `/api/*` Pages Function proxy）
-- 部署方式：Wrangler Direct Upload（`npm run build` 產出 `out/`，並一併部署 `functions/` 作為 `/api/*` proxy）
-- 已驗證：首頁 HTTP 200，HTML title 為 `FlightSearch — 機票快速搜尋`，375px Playwright 煙霧測試通過。
+- 舊 Production URL：`https://flight-search-web-29x.pages.dev`
+- 舊部署方式：Wrangler Direct Upload（可用，但不再作為正式流程）
+- 目標正式部署方式：Cloudflare Pages GitHub integration，連線 `jack926509/Flight-search-web` 的 `main` 分支
+- GitHub 部署整理：見 [`CLOUDFLARE_GITHUB_DEPLOYMENT.md`](CLOUDFLARE_GITHUB_DEPLOYMENT.md)
 
-Build command：`npm run build`　Output directory：`out`
+Cloudflare Pages GitHub build 設定：
+
+| 欄位 | 值 |
+|---|---|
+| Production branch | `main` |
+| Root directory | `frontend` |
+| Framework preset | `Next.js (Static HTML Export)`，若無此選項則選 None |
+| Build command | `npm run build` |
+| Output directory | `out` |
 
 Cloudflare Pages production 環境變數：
 
 | 變數 | 值 | 注意 |
 |---|---|---|
+| `NODE_VERSION` | `22` | 固定 Cloudflare build image 的 Node 版本 |
 | `FLIGHT_SEARCH_API_URL` | `https://flight-search-api.zeabur.app` | Pages Function 伺服器端變數，不會打包進 JS |
 | `FLIGHT_SEARCH_API_TOKEN` | 與 Zeabur 後端 `API_TOKEN` 相同 | Pages Function 伺服器端變數，不會公開到瀏覽器 |
 | `NEXT_PUBLIC_API_URL` | 留空 | production 走同網域 `/api/*` proxy |
@@ -64,6 +73,8 @@ Cloudflare Pages production 環境變數：
 
 本機開發可在 `frontend/.env.local` 設 `NEXT_PUBLIC_API_URL=http://localhost:8000` 直連本機後端。
 改 `NEXT_PUBLIC_*` 變數後必須 **重新 build**（靜態輸出，變數在 build 時固化）；改 `FLIGHT_SEARCH_*` 則重新部署 Pages Function 即可。
+
+> 2026-07-09 整理：Cloudflare 畫面上同時存在「Direct Upload 舊 Pages」與「GitHub 連線但 build 失敗的項目」。正式方向是修正 GitHub 連線項目的 build 設定，待 GitHub deployment 通過且新網址驗收完成後，再由使用者確認是否刪除舊 Direct Upload 專案。
 
 ## 3. 本機開發 / E2E（不進任何後台）
 
@@ -77,7 +88,7 @@ Cloudflare Pages production 環境變數：
 1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` + `schema_v4.sql` 已套用、RLS 已啟用；security/performance advisors 0 筆）
 2. ~~`openssl rand -hex 24` 產生 `API_TOKEN`~~ ✅ 已完成並設於 Zeabur
 3. ~~Zeabur 部署後端~~ ✅ 已完成（Docker / FastAPI / uvicorn）
-4. ~~Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 部署前端與 `functions/` proxy~~ ✅ 已完成
+4. Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 部署前端與 `functions/` proxy：Direct Upload 舊站已完成；GitHub integration 需依上方設定修正後重新部署
 5. ~~回 Zeabur 把 `ALLOWED_ORIGINS` 改成 Pages 網域 → 重啟~~ ✅ 已完成
 6. UptimeRobot 打 `https://flight-search-api.zeabur.app/api/health`（5 分鐘）⬜ 待設定
 
