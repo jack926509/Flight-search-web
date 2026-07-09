@@ -10,30 +10,33 @@ Cloudflare「Workers 和 Pages」目前看到兩個同名項目：
 1. `flight-search-web` / `flight-search-web-29x.pages.dev`
    - 類型：Pages
    - 狀態：可用
-   - 問題：沒有 Git 連線，屬於 Direct Upload 舊部署。
+   - 狀態：已保留為唯一正式前端，並由 GitHub Actions 部署。
 
 2. `flight-search-web` / `jack926509/Flight-search-web`
-   - 類型：GitHub 連線部署項目
-   - 狀態：最新組建失敗，且目前無使用中路由。
-   - 目標：修正 build 設定後，升級為唯一正式前端部署。
+   - 類型：Workers 項目，不是 Pages 前端站。
+   - 狀態：已刪除。
+   - 原因：不是 Pages 前端、沒有使用中路由，且與正式 Pages 同名造成混淆。
 
 ## 正式保留方案
 
-保留 GitHub 連線的 Cloudflare Pages 專案作為正式站：
+保留唯一 Cloudflare Pages 專案作為正式站，並由 GitHub Actions 自動部署：
 
 - GitHub repository：`jack926509/Flight-search-web`
 - Production branch：`main`
-- Root directory：`frontend`
-- Framework preset：`Next.js (Static HTML Export)`，若沒有此選項則選 None
-- Build command：`npm run build`
-- Build output directory：`out`
+- Cloudflare Pages project：`flight-search-web`
+- Cloudflare Pages domain：`flight-search-web-29x.pages.dev`
+- GitHub Actions workflow：`.github/workflows/cloudflare-pages.yml`
+- Workflow build root：`frontend`
+- Workflow build command：`npm ci` → `npm run build`
+- Workflow deploy command：`wrangler pages deploy out --project-name=flight-search-web --branch=main`
 - Node.js version：`22`
 
 理由：
 
 - 本 repo 是 monorepo，前端專案實際在 `frontend/`。
 - `frontend/next.config.ts` 已設定 `output: "export"`，`npm run build` 會輸出靜態網站到 `frontend/out`。
-- Cloudflare Pages GitHub 連線後，push 到 `main` 就會自動建置，不需要手動 Direct Upload。
+- push 到 GitHub `main` 後，GitHub Actions 會自動建置並部署到同一個 Cloudflare Pages 專案。
+- Cloudflare 畫面只保留一個正式前端 Pages，不另外建立第二個同名前端專案。
 
 ## Cloudflare Pages 環境變數
 
@@ -41,7 +44,6 @@ Cloudflare「Workers 和 Pages」目前看到兩個同名項目：
 
 | 變數 | 值 | 說明 |
 |---|---|---|
-| `NODE_VERSION` | `22` | 固定 Pages build image 的 Node 版本 |
 | `FLIGHT_SEARCH_API_URL` | `https://flight-search-api.zeabur.app` | Pages Function proxy 的後端網址 |
 | `FLIGHT_SEARCH_API_TOKEN` | 與 Zeabur 後端 `API_TOKEN` 相同 | Secret，不可進 repo |
 | `NEXT_PUBLIC_API_URL` | 留空 | Production 走同網域 `/api/*` |
@@ -49,28 +51,35 @@ Cloudflare「Workers 和 Pages」目前看到兩個同名項目：
 
 Preview 環境可以沿用同樣的 `FLIGHT_SEARCH_API_URL`，但 `FLIGHT_SEARCH_API_TOKEN` 一樣要在 Cloudflare 後台用 secret 設定。
 
+GitHub repository secrets 需要設定：
+
+| Secret | 說明 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | 給 GitHub Actions 使用的 Cloudflare API token，需具備 Pages deploy 權限 |
+
 ## 舊 Direct Upload 專案處理
 
-不要立即刪除舊的 `flight-search-web-29x.pages.dev`。先完成以下驗收：
+不要刪除 `flight-search-web-29x.pages.dev`，這是唯一正式前端 Pages。同名 Worker `flight-search-web` 已於 2026-07-09 刪除，因為它不是 Pages 前端、沒有使用中路由，會造成 Cloudflare 清單混淆。
 
-1. GitHub 連線 Pages 專案的 `main` 最新 deployment 成功。
-2. 新 Pages 網址首頁 HTTP 200。
-3. 新 Pages 網址 `/api/health` HTTP 200，且可連到 Zeabur 後端。
-4. Zeabur `ALLOWED_ORIGINS` 已加入新的 Pages production domain。
-5. 使用新網址跑過 375px Playwright smoke 或人工手機驗收。
+刪除 Worker 後，完成以下驗收：
 
-以上完成後，再由使用者確認是否刪除舊 Direct Upload 專案。刪除前應確認沒有自訂網域、監控、書籤或文件仍指向舊網址。
+1. Cloudflare Pages 專案 `flight-search-web` 最新 deployment 成功：`https://01e99737.flight-search-web-29x.pages.dev`。
+2. `https://flight-search-web-29x.pages.dev/` 首頁 HTTP 200。
+3. `https://flight-search-web-29x.pages.dev/api/health` HTTP 200，且可連到 Zeabur 後端。
+4. Zeabur `ALLOWED_ORIGINS` 已包含 `https://flight-search-web-29x.pages.dev`。
+5. GitHub Actions workflow 已建立：`.github/workflows/cloudflare-pages.yml`。
+
+以上完成後，Cloudflare 前端只剩一個正式 Pages 專案。
 
 ## 建置失敗最常見原因
 
-若 GitHub 連線的項目建置失敗，優先檢查：
+若 GitHub Actions 部署失敗，優先檢查：
 
-1. Root directory 是否設為 `frontend`。若留空，Cloudflare 會在 repo 根目錄找 `package.json`，本專案會失敗。
-2. Output directory 是否設為 `out`。不要填 `frontend/out`，因為 root 已經是 `frontend`。
-3. Build command 是否是 `npm run build`。
-4. `NODE_VERSION` 是否設為 `22`。
-5. Cloudflare Pages Functions 是否有部署到 `frontend/functions/api/[[path]].js`。
-6. `FLIGHT_SEARCH_API_TOKEN` 是否與 Zeabur `API_TOKEN` 相同。
+1. GitHub secret `CLOUDFLARE_API_TOKEN` 是否已設定。
+2. `frontend/package-lock.json` 是否和 `package.json` 同步。
+3. `frontend/functions/api/[[path]].js` 是否仍存在，否則 `/api/*` proxy 不會部署。
+4. Cloudflare Pages production 環境變數 `FLIGHT_SEARCH_API_TOKEN` 是否與 Zeabur `API_TOKEN` 相同。
+5. Zeabur `ALLOWED_ORIGINS` 是否允許 Pages domain。
 
 ## 完成後的正式部署流程
 

@@ -46,35 +46,40 @@
 目前前端：
 
 - Project：`flight-search-web`
-- 舊 Production URL：`https://flight-search-web-29x.pages.dev`
-- 舊部署方式：Wrangler Direct Upload（可用，但不再作為正式流程）
-- 目標正式部署方式：Cloudflare Pages GitHub integration，連線 `jack926509/Flight-search-web` 的 `main` 分支
+- Production URL：`https://flight-search-web-29x.pages.dev`
+- 最新部署：`https://01e99737.flight-search-web-29x.pages.dev`
+- 正式部署方式：GitHub Actions 從 `jack926509/Flight-search-web` 的 `main` 分支部署到同一個 Cloudflare Pages 專案
 - GitHub 部署整理：見 [`CLOUDFLARE_GITHUB_DEPLOYMENT.md`](CLOUDFLARE_GITHUB_DEPLOYMENT.md)
 
-Cloudflare Pages GitHub build 設定：
+GitHub Actions build 設定：
 
 | 欄位 | 值 |
 |---|---|
 | Production branch | `main` |
-| Root directory | `frontend` |
-| Framework preset | `Next.js (Static HTML Export)`，若無此選項則選 None |
-| Build command | `npm run build` |
-| Output directory | `out` |
+| Workflow | `.github/workflows/cloudflare-pages.yml` |
+| Working directory | `frontend` |
+| Build command | `npm ci` → `npm run build` |
+| Deploy command | `wrangler pages deploy out --project-name=flight-search-web --branch=main` |
 
 Cloudflare Pages production 環境變數：
 
 | 變數 | 值 | 注意 |
 |---|---|---|
-| `NODE_VERSION` | `22` | 固定 Cloudflare build image 的 Node 版本 |
 | `FLIGHT_SEARCH_API_URL` | `https://flight-search-api.zeabur.app` | Pages Function 伺服器端變數，不會打包進 JS |
 | `FLIGHT_SEARCH_API_TOKEN` | 與 Zeabur 後端 `API_TOKEN` 相同 | Pages Function 伺服器端變數，不會公開到瀏覽器 |
 | `NEXT_PUBLIC_API_URL` | 留空 | production 走同網域 `/api/*` proxy |
 | `NEXT_PUBLIC_API_TOKEN` | 留空 | 不再把 token 打包進瀏覽器 JS |
 
+GitHub Actions repository secret：
+
+| Secret | 用途 |
+|---|---|
+| `CLOUDFLARE_API_TOKEN` | 讓 GitHub Actions 呼叫 Cloudflare Pages deploy |
+
 本機開發可在 `frontend/.env.local` 設 `NEXT_PUBLIC_API_URL=http://localhost:8000` 直連本機後端。
 改 `NEXT_PUBLIC_*` 變數後必須 **重新 build**（靜態輸出，變數在 build 時固化）；改 `FLIGHT_SEARCH_*` 則重新部署 Pages Function 即可。
 
-> 2026-07-09 整理：Cloudflare 畫面上同時存在「Direct Upload 舊 Pages」與「GitHub 連線但 build 失敗的項目」。正式方向是修正 GitHub 連線項目的 build 設定，待 GitHub deployment 通過且新網址驗收完成後，再由使用者確認是否刪除舊 Direct Upload 專案。
+> 2026-07-09 整理：Cloudflare Pages 清單只有一個正式前端 `flight-search-web-29x.pages.dev`；截圖中另一個同名項目是 Worker，不是 Pages 前端，且沒有使用中路由，已刪除。正式方向是保留唯一 Pages，並由 GitHub Actions 自動部署。
 
 ## 3. 本機開發 / E2E（不進任何後台）
 
