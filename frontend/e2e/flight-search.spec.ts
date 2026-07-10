@@ -17,6 +17,59 @@ const tomorrow = new Date(Date.now() + 86_400_000)
 const TEST_DATE = process.env.E2E_CACHED_DATE || tomorrow;
 
 test.describe("FlightSearch E2E", () => {
+  test("round-trip mode searches outbound and return legs with total price", async ({
+    page,
+  }) => {
+    await page.route("**/api/health", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "ok", db: true }),
+      });
+    });
+    await page.route("**/api/search**", async (route) => {
+      const url = new URL(route.request().url());
+      const origin = url.searchParams.get("origin");
+      const dest = url.searchParams.get("dest");
+      const isReturn = origin === "NRT" && dest === "TPE";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          flights: [
+            {
+              airline: isReturn ? "BR" : "CI",
+              flight_no: isReturn ? "BR198" : "CI100",
+              depart_time: isReturn ? "18:30" : "09:10",
+              arrive_time: isReturn ? "21:40" : "13:25",
+              duration_min: isReturn ? 190 : 255,
+              stops: 0,
+              price: isReturn ? 9200 : 8800,
+              currency: "TWD",
+              booking_hint: "https://www.google.com/travel/flights",
+            },
+          ],
+          source: "fast_flights",
+          fetched_at: new Date().toISOString(),
+          stale: false,
+        }),
+      });
+    });
+
+    await page.goto(
+      "/?trip=round-trip&origin=TPE&dest=NRT&date=2030-10-01&returnDate=2030-10-05&adults=1&cabin=economy"
+    );
+
+    await expect(page.getByRole("tab", { name: "來回", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByLabel("回程日期")).toHaveValue("2030-10-05");
+    await page.getByLabel("去程結果").locator("[role='option']").first().waitFor();
+    await page.getByLabel("回程結果").locator("[role='option']").first().waitFor();
+
+    const totalText = (await page.getByLabel("來回總價").textContent()) ?? "";
+    expect(totalText).toContain("已選 2 / 2 段合計");
+    expect(totalText).toContain("NT$ 18,000");
+  });
+
   // ── (a) Search TPE→NRT returns ≥1 flight card ───────────────────────────
 
   test("(a) TPE→NRT search returns at least one flight card", async ({

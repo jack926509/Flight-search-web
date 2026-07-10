@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import SearchCard from "./SearchCard";
 import ResultsSection from "./ResultsSection";
+import RoundTripResults from "./RoundTripResults";
 import MultiSearchCard from "./MultiSearchCard";
 import MultiLegResults from "./MultiLegResults";
 import ComboSearchCard from "./ComboSearchCard";
@@ -18,10 +19,16 @@ export default function SearchPage() {
     origin, setOrigin,
     dest, setDest,
     date, setDate,
+    tripType, setTripType,
+    returnDate, setReturnDate,
     adults, setAdults,
     cabin, setCabin,
     status, result, error,
+    returnStatus, returnResult, returnError,
     sortBy, setSortBy,
+    selectedOutbound, setSelectedOutbound,
+    selectedReturn, setSelectedReturn,
+    roundTripTotal,
     handleSubmit, swapAirports, retry, goDate,
     today,
   } = useSearch();
@@ -77,7 +84,7 @@ export default function SearchPage() {
                 : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
             }`}
           >
-            單程查詢
+            單程 / 來回
           </button>
           <button
             role="tab"
@@ -113,30 +120,66 @@ export default function SearchPage() {
               origin={origin}
               dest={dest}
               date={date}
+              tripType={tripType}
+              returnDate={returnDate}
               adults={adults}
               cabin={cabin}
               today={today}
-              loading={status === "loading"}
+              loading={status === "loading" || returnStatus === "loading"}
               onOriginChange={setOrigin}
               onDestChange={setDest}
-              onDateChange={setDate}
+              onDateChange={(value) => {
+                setDate(value);
+                if (returnDate < value) setReturnDate(value);
+              }}
+              onTripTypeChange={setTripType}
+              onReturnDateChange={setReturnDate}
               onAdultsChange={setAdults}
               onCabinChange={setCabin}
               onSwap={swapAirports}
               onSubmit={handleSubmit}
             />
 
-            <ResultsSection
-              status={status}
-              result={result}
-              error={error}
-              sortBy={sortBy}
-              origin={origin}
-              dest={dest}
-              onSortChange={setSortBy}
-              onRetry={retry}
-              onGoDate={goDate}
-            />
+            {tripType === "round-trip" ? (
+              <RoundTripResults
+                outbound={{
+                  label: "去程",
+                  route: `${origin} → ${dest}`,
+                  date,
+                  status,
+                  result,
+                  error,
+                  selected: selectedOutbound,
+                  sortBy,
+                  onSelect: setSelectedOutbound,
+                }}
+                inbound={{
+                  label: "回程",
+                  route: `${dest} → ${origin}`,
+                  date: returnDate,
+                  status: returnStatus,
+                  result: returnResult,
+                  error: returnError,
+                  selected: selectedReturn,
+                  sortBy,
+                  onSelect: setSelectedReturn,
+                }}
+                total={roundTripTotal}
+                onRetry={retry}
+              />
+            ) : (
+              <ResultsSection
+                status={status}
+                result={result}
+                error={error}
+                sortBy={sortBy}
+                origin={origin}
+                dest={dest}
+                onSortChange={setSortBy}
+                onRetry={retry}
+                onGoDate={goDate}
+              />
+            )}
           </>
         ) : mode === "multi" ? (
           <>
