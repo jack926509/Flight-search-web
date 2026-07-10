@@ -21,6 +21,9 @@ test.describe("FlightSearch E2E", () => {
     page,
   }) => {
     const searchHosts: string[] = [];
+    let trackerDeleted = false;
+    let trackerEnabled = true;
+    await page.addInitScript(() => window.localStorage.clear());
     await page.route("**/api/health", async (route) => {
       await route.fulfill({
         status: 200,
@@ -57,6 +60,68 @@ test.describe("FlightSearch E2E", () => {
         }),
       });
     });
+    await page.route("**/api/trackers**", async (route) => {
+      const method = route.request().method();
+      const tracker = {
+        id: "tracker-1",
+        trip_type: "round-trip",
+        origin: "TPE",
+        dest: "NRT",
+        depart_date: "2030-10-01",
+        return_date: "2030-10-05",
+        adults: 1,
+        cabin: "economy",
+        target_price_twd: 18000,
+        current_price_twd: 18000,
+        previous_price_twd: 20000,
+        enabled: trackerEnabled,
+        last_checked_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      };
+      const event = {
+        id: "event-1",
+        tracker_id: "tracker-1",
+        event_type: "price_drop",
+        price_twd: 18000,
+        previous_price_twd: 20000,
+        target_price_twd: 18000,
+        message: "TPE ⇄ NRT 已低於目標價：NT$ 18,000",
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      if (method === "POST") {
+        trackerDeleted = false;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ tracker_key: "trk_test_key_abcdefghijklmnopqrstuvwxyz123456", tracker, events: [], trackers: [tracker], unread_count: 0 }),
+        });
+        return;
+      }
+      if (method === "PATCH") {
+        trackerEnabled = false;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ tracker: { ...tracker, enabled: trackerEnabled }, trackers: [{ ...tracker, enabled: trackerEnabled }], events: [event], unread_count: 1 }),
+        });
+        return;
+      }
+      if (method === "DELETE") {
+        trackerDeleted = true;
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ ok: true }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ trackers: trackerDeleted ? [] : [{ ...tracker, enabled: trackerEnabled }], events: trackerDeleted ? [] : [event], unread_count: trackerDeleted ? 0 : 1 }),
+      });
+    });
 
     await page.goto(
       "/?trip=round-trip&origin=TPE&dest=NRT&date=2030-10-01&returnDate=2030-10-05&adults=1&cabin=economy"
@@ -79,6 +144,19 @@ test.describe("FlightSearch E2E", () => {
     expect(totalText).toContain("已選 2 / 2 段合計");
     expect(totalText).toContain("NT$ 18,000");
     expect(searchHosts).toEqual(["127.0.0.1:8000", "127.0.0.1:8000"]);
+
+    await page.getByLabel("目標價").fill("18000");
+    await page.getByRole("button", { name: "追蹤", exact: true }).last().click();
+    await expect(page.getByText("已追蹤")).toBeVisible();
+    await page.getByLabel("開啟追蹤清單").click();
+    const drawer = page.getByRole("dialog", { name: "追蹤清單" });
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByText("TPE ⇄ NRT", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("TPE ⇄ NRT 已低於目標價：NT$ 18,000")).toBeVisible();
+    await page.getByRole("button", { name: "停用" }).click();
+    await expect(page.getByText("已停用")).toBeVisible();
+    await page.getByRole("button", { name: "刪除" }).click();
+    await expect(page.getByText("尚未建立追蹤")).toBeVisible();
   });
 
   // ── (a) Search TPE→NRT returns ≥1 flight card ───────────────────────────

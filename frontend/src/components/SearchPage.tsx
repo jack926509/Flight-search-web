@@ -9,10 +9,12 @@ import MultiSearchCard from "./MultiSearchCard";
 import MultiLegResults from "./MultiLegResults";
 import ComboSearchCard from "./ComboSearchCard";
 import ComboMatrix from "./ComboMatrix";
+import TrackerDrawer from "./TrackerDrawer";
 import { useSearch } from "@/hooks/useSearch";
 import { useMultiSearch } from "@/hooks/useMultiSearch";
 import { useComboSearch } from "@/hooks/useComboSearch";
 import { useHealth } from "@/hooks/useHealth";
+import { useTrackers } from "@/hooks/useTrackers";
 
 export default function SearchPage() {
   const {
@@ -35,6 +37,7 @@ export default function SearchPage() {
 
   const multi = useMultiSearch();
   const combo = useComboSearch();
+  const trackers = useTrackers();
   const searchParams = useSearchParams();
   const urlMode = searchParams.get("mode");
   const [mode, setMode] = useState<"single" | "multi" | "combo">(
@@ -55,13 +58,26 @@ export default function SearchPage() {
       {/* Header */}
       <header className="h-14 bg-white shadow-sm flex items-center px-6 justify-between">
         <h1 className="text-lg font-bold text-gray-900">✈ FlightSearch</h1>
-        <div
-          className="flex items-center gap-1.5 text-xs text-gray-400"
-          aria-label="系統狀態"
-          title={light.hint}
-        >
-          <span className={`inline-block w-2 h-2 rounded-full ${light.color}`} />
-          {light.text}
+        <div className="flex items-center gap-3">
+          <TrackerDrawer
+            trackers={trackers.trackers}
+            events={trackers.events}
+            unreadCount={trackers.unreadCount}
+            loading={trackers.loading}
+            error={trackers.error}
+            onReload={() => void trackers.reload()}
+            onToggle={(id, enabled) => void trackers.setTrackerEnabled(id, enabled)}
+            onMarkRead={(id) => void trackers.markTrackerRead(id)}
+            onDelete={(id) => void trackers.removeTracker(id)}
+          />
+          <div
+            className="flex items-center gap-1.5 text-xs text-gray-400"
+            aria-label="系統狀態"
+            title={light.hint}
+          >
+            <span className={`inline-block w-2 h-2 rounded-full ${light.color}`} />
+            {light.text}
+          </div>
         </div>
       </header>
 
@@ -166,6 +182,16 @@ export default function SearchPage() {
                 }}
                 total={roundTripTotal}
                 onRetry={retry}
+                onTrackPrice={(targetPrice) => trackers.addTracker({
+                  trip_type: "round-trip",
+                  origin,
+                  dest,
+                  date,
+                  return_date: returnDate,
+                  adults,
+                  cabin,
+                  target_price_twd: targetPrice,
+                }).then(() => undefined)}
               />
             ) : (
               <ResultsSection
@@ -178,6 +204,15 @@ export default function SearchPage() {
                 onSortChange={setSortBy}
                 onRetry={retry}
                 onGoDate={goDate}
+                onTrackPrice={(targetPrice) => trackers.addTracker({
+                  trip_type: "one-way",
+                  origin,
+                  dest,
+                  date,
+                  adults,
+                  cabin,
+                  target_price_twd: targetPrice,
+                }).then(() => undefined)}
               />
             )}
           </>

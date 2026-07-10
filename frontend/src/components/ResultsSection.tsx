@@ -3,6 +3,7 @@
 import FlightCard from "./FlightCard";
 import LoadingSkeleton from "./LoadingSkeleton";
 import PriceTrendSection from "./PriceTrendChart";
+import TrackPriceAction from "./TrackPriceAction";
 import { sortFlights, formatRelativeTime, type SortKey } from "@/lib/api";
 import type { SearchResult } from "@/lib/api";
 import type { SearchStatus } from "@/hooks/useSearch";
@@ -23,11 +24,12 @@ interface Props {
   onSortChange: (k: SortKey) => void;
   onRetry: () => void;
   onGoDate: (delta: number) => void;
+  onTrackPrice?: (price: number) => Promise<void>;
 }
 
 export default function ResultsSection({
   status, result, error, sortBy, origin, dest,
-  onSortChange, onRetry, onGoDate,
+  onSortChange, onRetry, onGoDate, onTrackPrice,
 }: Props) {
   if (status === "idle") return null;
 
@@ -140,6 +142,13 @@ export default function ResultsSection({
             資料來源：{result.source === "cache" ? "快取" : result.source === "fast_flights" ? "Google Flights" : "Kiwi.com"}
             ・{formatRelativeTime(result.fetched_at)}
           </p>
+
+          {onTrackPrice && (
+            <TrackPriceAction
+              defaultPrice={sortFlights(result.flights, "price")[0].price}
+              onTrack={onTrackPrice}
+            />
+          )}
 
           {/* Cards */}
           <div className="space-y-3">

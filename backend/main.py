@@ -6,7 +6,7 @@ import secrets
 from contextlib import asynccontextmanager
 from datetime import date as DateType
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -16,11 +16,19 @@ from slowapi.util import get_remote_address
 
 from db import client as db_client
 from db import repository as repo
+from db import tracker_repository as tracker_repo
 from providers.fast_flights_provider import FastFlightsProvider
 from providers.kiwi_provider import KiwiProvider
 from services.cached_search import CachedSearch
 from services.circuit_breaker import CircuitBreaker
 from services.search_chain import AllProvidersFailed, SearchChain
+from services.tracker_service import (
+    TrackerKeyError,
+    create_tracker_payload,
+    generate_tracker_key,
+    hash_tracker_key,
+    lowest_price,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -81,8 +89,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
     allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=["*", "X-API-Token"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["*", "X-API-Token", "X-Tracker-Key"],
 )
 
 _IATA_RE = re.compile(r"^[A-Z]{3}$")
@@ -100,6 +108,65 @@ class ErrorDetail(BaseModel):
     code: str
     message: str
     retryable: bool
+
+
+class TrackerCreate(BaseModel):
+    trip_type: str
+    origin: str
+    dest: str
+    date: str
+    return_date: str | None = None
+    adults: int = 1
+    cabin: str = "economy"
+    target_price_twd: int | None = None
+
+
+class TrackerPatch(BaseModel):
+    target_price_twd: int | None = None
+    enabled: bool | None = None
+    mark_all_read: bool = False
+
+
+def _validate_iata(value: str, field: str) -> None:
+    if not _IATA_RE.match(value):
+        raise HTTPException(status_code=422, detail=f"{field} must be 3 uppercase letters (e.g. TPE)")
+
+
+def _validate_date(value: str, field: str) -> DateType:
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise HTTPException(status_code=422, detail=f"{field} must be YYYY-MM-DD")
+    try:
+        parsed = DateType.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"{field} must be YYYY-MM-DD")
+    if parsed < DateType.today():
+        raise HTTPException(status_code=422, detail=f"{field} must be today or in the future")
+    return parsed
+
+
+def _validate_cabin(value: str) -> None:
+    valid_cabins = {"economy", "premium-economy", "business", "first"}
+    if value not in valid_cabins:
+        raise HTTPException(status_code=422, detail=f"cabin must be one of {sorted(valid_cabins)}")
+
+
+def _tracker_hash_from_header(x_tracker_key: str | None) -> str:
+    if not x_tracker_key:
+        raise HTTPException(status_code=422, detail="X-Tracker-Key header is required")
+    try:
+        return hash_tracker_key(x_tracker_key)
+    except TrackerKeyError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
+
+async def _tracker_db():
+    if _cached_search is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    try:
+        async with asyncio.timeout(8):
+            return await db_client.get_client()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unavailable")
 
 
 @app.middleware("http")
@@ -187,23 +254,10 @@ async def search_flights(
     adults: int = Query(default=1, ge=1, le=9),
     cabin: str = Query(default="economy"),
 ):
-    if not _IATA_RE.match(origin):
-        raise HTTPException(status_code=422, detail="origin must be 3 uppercase letters (e.g. TPE)")
-    if not _IATA_RE.match(dest):
-        raise HTTPException(status_code=422, detail="dest must be 3 uppercase letters (e.g. NRT)")
-
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
-        raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
-    try:
-        dep_date = DateType.fromisoformat(date)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
-    if dep_date < DateType.today():
-        raise HTTPException(status_code=422, detail="date must be today or in the future")
-
-    valid_cabins = {"economy", "premium-economy", "business", "first"}
-    if cabin not in valid_cabins:
-        raise HTTPException(status_code=422, detail=f"cabin must be one of {sorted(valid_cabins)}")
+    _validate_iata(origin, "origin")
+    _validate_iata(dest, "dest")
+    _validate_date(date, "date")
+    _validate_cabin(cabin)
 
     try:
         if _cached_search is not None:
@@ -217,6 +271,136 @@ async def search_flights(
         )
 
     return result
+
+
+@app.post("/api/trackers")
+@_limiter.limit("10/minute")
+async def create_tracker(
+    request: Request,
+    payload: TrackerCreate,
+    x_tracker_key: str | None = Header(default=None, alias="X-Tracker-Key"),
+):
+    _validate_iata(payload.origin, "origin")
+    _validate_iata(payload.dest, "dest")
+    dep_date = _validate_date(payload.date, "date")
+    ret_date = _validate_date(payload.return_date, "return_date") if payload.return_date else None
+    _validate_cabin(payload.cabin)
+    if payload.trip_type not in {"one-way", "round-trip"}:
+        raise HTTPException(status_code=422, detail="trip_type must be one-way or round-trip")
+    if payload.trip_type == "one-way" and payload.return_date:
+        raise HTTPException(status_code=422, detail="one-way tracker must not include return_date")
+    if payload.trip_type == "round-trip" and not payload.return_date:
+        raise HTTPException(status_code=422, detail="round-trip tracker requires return_date")
+    if ret_date and ret_date < dep_date:
+        raise HTTPException(status_code=422, detail="return_date must be after date")
+    if payload.target_price_twd is not None and payload.target_price_twd <= 0:
+        raise HTTPException(status_code=422, detail="target_price_twd must be greater than 0")
+
+    raw_key = x_tracker_key or generate_tracker_key()
+    try:
+        tracker_key_hash = hash_tracker_key(raw_key)
+    except TrackerKeyError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
+
+    db = await _tracker_db()
+    current_price: int | None = None
+    if _cached_search is not None:
+        try:
+            if payload.trip_type == "one-way":
+                result = await _cached_search.search(payload.origin, payload.dest, payload.date, payload.adults, payload.cabin)
+                current_price = lowest_price(result)
+            else:
+                outbound, inbound = await asyncio.gather(
+                    _cached_search.search(payload.origin, payload.dest, payload.date, payload.adults, payload.cabin),
+                    _cached_search.search(payload.dest, payload.origin, payload.return_date or "", payload.adults, payload.cabin),
+                )
+                out_price = lowest_price(outbound)
+                in_price = lowest_price(inbound)
+                current_price = out_price + in_price if out_price and in_price else None
+        except Exception:
+            current_price = None
+
+    tracker = await tracker_repo.create_tracker(
+        db,
+        create_tracker_payload(payload, tracker_key_hash, current_price),
+    )
+    return {
+        "tracker_key": raw_key if not x_tracker_key else None,
+        "tracker": tracker,
+        "events": [],
+    }
+
+
+@app.get("/api/trackers")
+@_limiter.limit("20/minute")
+async def list_trackers(
+    request: Request,
+    x_tracker_key: str | None = Header(default=None, alias="X-Tracker-Key"),
+):
+    tracker_key_hash = _tracker_hash_from_header(x_tracker_key)
+    db = await _tracker_db()
+    trackers = await tracker_repo.list_trackers(db, tracker_key_hash)
+    events = await tracker_repo.list_events(db, tracker_key_hash)
+    return {
+        "trackers": trackers,
+        "events": events,
+        "unread_count": sum(1 for event in events if not event.get("read")),
+    }
+
+
+@app.patch("/api/trackers/{tracker_id}")
+@_limiter.limit("20/minute")
+async def update_tracker(
+    request: Request,
+    tracker_id: str,
+    payload: TrackerPatch,
+    x_tracker_key: str | None = Header(default=None, alias="X-Tracker-Key"),
+):
+    tracker_key_hash = _tracker_hash_from_header(x_tracker_key)
+    db = await _tracker_db()
+
+    changes: dict = {}
+    if payload.target_price_twd is not None:
+        if payload.target_price_twd <= 0:
+            raise HTTPException(status_code=422, detail="target_price_twd must be greater than 0")
+        changes["target_price_twd"] = payload.target_price_twd
+    if payload.enabled is not None:
+        changes["enabled"] = payload.enabled
+
+    tracker = None
+    if changes:
+        tracker = await tracker_repo.update_tracker(db, tracker_id, tracker_key_hash, changes)
+        if tracker is None:
+            raise HTTPException(status_code=404, detail="Tracker not found")
+    else:
+        tracker = await tracker_repo.get_tracker_for_owner(db, tracker_id, tracker_key_hash)
+        if tracker is None:
+            raise HTTPException(status_code=404, detail="Tracker not found")
+
+    if payload.mark_all_read:
+        await tracker_repo.mark_events_read(db, tracker_key_hash, tracker_id)
+
+    events = await tracker_repo.list_events(db, tracker_key_hash)
+    return {
+        "tracker": tracker,
+        "events": events,
+        "unread_count": sum(1 for event in events if not event.get("read")),
+    }
+
+
+@app.delete("/api/trackers/{tracker_id}")
+@_limiter.limit("20/minute")
+async def delete_tracker(
+    request: Request,
+    tracker_id: str,
+    x_tracker_key: str | None = Header(default=None, alias="X-Tracker-Key"),
+):
+    tracker_key_hash = _tracker_hash_from_header(x_tracker_key)
+    db = await _tracker_db()
+    deleted = await tracker_repo.delete_tracker(db, tracker_id, tracker_key_hash)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Tracker not found")
+    return {"ok": True}
 
 
 @app.get("/api/history")

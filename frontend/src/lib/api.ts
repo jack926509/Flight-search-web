@@ -100,11 +100,11 @@ export function formatAirlineLabel(airline: string, flightNo = ""): { name: stri
   };
 }
 
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   return API_TOKEN ? { "X-API-Token": API_TOKEN } : {};
 }
 
-function apiUrl(path: string): URL {
+export function apiUrl(path: string): URL {
   if (API_URL) return new URL(`${API_URL}${path}`);
   if (typeof window !== "undefined") {
     const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);

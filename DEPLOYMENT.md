@@ -85,7 +85,7 @@ Cloudflare Pages production 環境變數：
 
 ## 4. 部署順序（變數相依關係）
 
-1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` + `schema_v4.sql` 已套用、RLS 已啟用；security/performance advisors 0 筆）
+1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` + `schema_v4.sql` + `schema_v5.sql` 已套用、RLS 已啟用；追蹤功能資料表為 server-only）
 2. ~~`openssl rand -hex 24` 產生 `API_TOKEN`~~ ✅ 已完成並設於 Zeabur
 3. ~~Zeabur 部署後端~~ ✅ 已完成（Docker / FastAPI / uvicorn）
 4. ~~Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 由 GitHub integration 部署前端與 `functions/` proxy~~ ✅ 已完成（commit `0ae7b13` 自動部署成功）

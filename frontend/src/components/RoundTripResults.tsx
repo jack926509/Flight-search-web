@@ -3,6 +3,7 @@
 import { formatAirlineLabel, formatDuration, formatRelativeTime, sortFlights, type SearchResult, type SortKey } from "@/lib/api";
 import type { SearchStatus } from "@/hooks/useSearch";
 import AirlineIcon from "./AirlineIcon";
+import TrackPriceAction from "./TrackPriceAction";
 
 interface SegmentProps {
   label: string;
@@ -21,6 +22,7 @@ interface Props {
   inbound: SegmentProps;
   total: number;
   onRetry: () => void;
+  onTrackPrice?: (price: number) => Promise<void>;
 }
 
 function sourceLabel(source: string): string {
@@ -147,7 +149,7 @@ function RoundTripSegment({
   );
 }
 
-export default function RoundTripResults({ outbound, inbound, total, onRetry }: Props) {
+export default function RoundTripResults({ outbound, inbound, total, onRetry, onTrackPrice }: Props) {
   const anyActivity = outbound.status !== "idle" || inbound.status !== "idle";
   if (!anyActivity) return null;
 
@@ -179,6 +181,10 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry }: 
           NT$ {total.toLocaleString()}
         </span>
       </div>
+
+      {onTrackPrice && pricedCount === 2 && total > 0 && (
+        <TrackPriceAction defaultPrice={total} onTrack={onTrackPrice} />
+      )}
 
       {(outbound.status === "error" || inbound.status === "error") && (
         <div className="text-center">

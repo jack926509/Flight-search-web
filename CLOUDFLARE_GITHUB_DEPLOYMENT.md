@@ -72,7 +72,7 @@ Preview 環境沿用同樣的 `FLIGHT_SEARCH_API_URL` 與 `FLIGHT_SEARCH_API_TOK
 2. Cloudflare build command 是否為 `npm run build`。
 3. Cloudflare output directory 是否為 `out`。
 4. `frontend/package-lock.json` 是否和 `package.json` 同步。
-5. `frontend/functions/api/[[path]].js` 是否仍存在，否則 `/api/*` proxy 不會部署。
+5. `frontend/functions/api/[[path]].js` 是否仍存在，否則 `/api/*` proxy 不會部署；追蹤功能需要 `trackers` endpoint 與 `GET/POST/PATCH/DELETE` 都可轉發。
 6. Cloudflare Pages production 環境變數 `FLIGHT_SEARCH_API_TOKEN` 是否與 Zeabur `API_TOKEN` 相同。
 7. Zeabur `ALLOWED_ORIGINS` 是否允許 Pages domain。
 

@@ -50,6 +50,17 @@ async def _daily_job(cached_search, db) -> None:
     logger.info("scheduler: daily_job done (%d routes)", len(routes))
 
 
+async def _tracker_job(cached_search, db) -> None:
+    logger.info("scheduler: tracker_job starting")
+    try:
+        from services.tracker_service import check_all_trackers
+        checked = await check_all_trackers(db, cached_search)
+    except Exception as exc:
+        logger.error("scheduler: tracker_job failed: %s", exc)
+        return
+    logger.info("scheduler: tracker_job done (%d trackers checked)", checked)
+
+
 def create_scheduler(cached_search, db) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -59,5 +70,13 @@ def create_scheduler(cached_search, db) -> AsyncIOScheduler:
         id="daily_price_fetch",
         replace_existing=True,
         misfire_grace_time=3600,  # run within 1h if missed (e.g. late startup)
+    )
+    scheduler.add_job(
+        _tracker_job,
+        trigger=CronTrigger(hour=10, minute=0, timezone="Asia/Taipei"),
+        args=[cached_search, db],
+        id="daily_tracker_check",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
     return scheduler

@@ -1,0 +1,169 @@
+"use client";
+
+import { useState } from "react";
+import { formatRelativeTime } from "@/lib/api";
+import type { PriceTracker, TrackerEvent } from "@/lib/trackers";
+
+interface Props {
+  trackers: PriceTracker[];
+  events: TrackerEvent[];
+  unreadCount: number;
+  loading: boolean;
+  error: string | null;
+  onReload: () => void;
+  onToggle: (trackerId: string, enabled: boolean) => void;
+  onMarkRead: (trackerId: string) => void;
+  onDelete: (trackerId: string) => void;
+}
+
+function tripLabel(tracker: PriceTracker): string {
+  if (tracker.trip_type === "round-trip") {
+    return `${tracker.origin} ⇄ ${tracker.dest}`;
+  }
+  return `${tracker.origin} → ${tracker.dest}`;
+}
+
+function dateLabel(tracker: PriceTracker): string {
+  if (tracker.trip_type === "round-trip") {
+    return `${tracker.depart_date} / ${tracker.return_date}`;
+  }
+  return tracker.depart_date;
+}
+
+export default function TrackerDrawer({
+  trackers, events, unreadCount, loading, error,
+  onReload, onToggle, onMarkRead, onDelete,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const eventsByTracker = new Map<string, TrackerEvent[]>();
+  for (const event of events) {
+    const list = eventsByTracker.get(event.tracker_id) || [];
+    list.push(event);
+    eventsByTracker.set(event.tracker_id, list);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          onReload();
+        }}
+        className="relative px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700
+                   hover:bg-gray-50 min-h-[40px]"
+        aria-label="開啟追蹤清單"
+      >
+        追蹤
+        {unreadCount > 0 && (
+          <span className="ml-2 inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-[#B45309] px-1 text-xs text-white">
+            {unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="追蹤清單">
+          <button
+            type="button"
+            aria-label="關閉追蹤清單背景"
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 bg-gray-900/30"
+          />
+          <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col">
+            <header className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">機票追蹤</h2>
+                <p className="text-xs text-gray-400">站內通知，不會寄 email 或推播</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="w-10 h-10 rounded-full border border-gray-200 hover:bg-gray-50"
+                aria-label="關閉追蹤清單"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="p-4 overflow-y-auto space-y-3">
+              {loading && <p className="text-sm text-gray-500">讀取追蹤清單中…</p>}
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              {!loading && trackers.length === 0 && (
+                <div className="py-10 text-center text-sm text-gray-500">
+                  尚未建立追蹤。查到票價後按「追蹤」即可加入。
+                </div>
+              )}
+
+              {trackers.map((tracker) => {
+                const latestEvents = eventsByTracker.get(tracker.id) || [];
+                const unread = latestEvents.some((event) => !event.read);
+                return (
+                  <section
+                    key={tracker.id}
+                    className={`rounded-xl border p-4 space-y-3 ${unread ? "border-[#B45309] bg-amber-50" : "border-gray-200 bg-white"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{tripLabel(tracker)}</p>
+                        <p className="text-xs text-gray-500">{dateLabel(tracker)}・{tracker.adults} 人・{tracker.cabin}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${tracker.enabled ? "bg-green-50 text-[#0A7A3D]" : "bg-gray-100 text-gray-500"}`}>
+                        {tracker.enabled ? "追蹤中" : "已停用"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="rounded-lg bg-gray-50 p-2">
+                        <p className="text-xs text-gray-400">目前最低</p>
+                        <p className="font-bold text-[#0A7A3D]">
+                          {tracker.current_price_twd ? `NT$ ${tracker.current_price_twd.toLocaleString()}` : "待檢查"}
+                        </p>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 p-2">
+                        <p className="text-xs text-gray-400">目標價</p>
+                        <p className="font-bold text-gray-800">
+                          {tracker.target_price_twd ? `NT$ ${tracker.target_price_twd.toLocaleString()}` : "未設定"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {latestEvents.slice(0, 2).map((event) => (
+                      <p key={event.id} className="text-xs text-[#B45309]">
+                        {event.message}・{formatRelativeTime(event.created_at)}
+                      </p>
+                    ))}
+
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => onToggle(tracker.id, !tracker.enabled)}
+                        className="px-3 py-2 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 min-h-[36px]"
+                      >
+                        {tracker.enabled ? "停用" : "啟用"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onMarkRead(tracker.id)}
+                        className="px-3 py-2 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 min-h-[36px]"
+                      >
+                        標記已讀
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(tracker.id)}
+                        className="px-3 py-2 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 min-h-[36px]"
+                      >
+                        刪除
+                      </button>
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
+  );
+}
