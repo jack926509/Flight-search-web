@@ -20,6 +20,7 @@ test.describe("FlightSearch E2E", () => {
   test("round-trip mode searches outbound and return legs with total price", async ({
     page,
   }) => {
+    const searchHosts: string[] = [];
     await page.route("**/api/health", async (route) => {
       await route.fulfill({
         status: 200,
@@ -29,6 +30,7 @@ test.describe("FlightSearch E2E", () => {
     });
     await page.route("**/api/search**", async (route) => {
       const url = new URL(route.request().url());
+      searchHosts.push(url.host);
       const origin = url.searchParams.get("origin");
       const dest = url.searchParams.get("dest");
       const isReturn = origin === "NRT" && dest === "TPE";
@@ -68,6 +70,7 @@ test.describe("FlightSearch E2E", () => {
     const totalText = (await page.getByLabel("來回總價").textContent()) ?? "";
     expect(totalText).toContain("已選 2 / 2 段合計");
     expect(totalText).toContain("NT$ 18,000");
+    expect(searchHosts).toEqual(["127.0.0.1:8000", "127.0.0.1:8000"]);
   });
 
   // ── (a) Search TPE→NRT returns ≥1 flight card ───────────────────────────

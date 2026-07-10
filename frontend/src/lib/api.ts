@@ -44,8 +44,14 @@ function authHeaders(): Record<string, string> {
 
 function apiUrl(path: string): URL {
   if (API_URL) return new URL(`${API_URL}${path}`);
-  if (typeof window !== "undefined") return new URL(path, window.location.origin);
-  return new URL(path, "http://localhost:8000");
+  if (typeof window !== "undefined") {
+    const localHosts = new Set(["localhost", "127.0.0.1", "::1"]);
+    if (localHosts.has(window.location.hostname)) {
+      return new URL(path, "http://127.0.0.1:8000");
+    }
+    return new URL(path, window.location.origin);
+  }
+  return new URL(path, "http://127.0.0.1:8000");
 }
 
 /** 依 HTTP 狀態碼與後端錯誤內容，轉成使用者看得懂、知道怎麼辦的中文訊息 */
