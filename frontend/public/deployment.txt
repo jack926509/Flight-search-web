@@ -1,3 +1,4 @@
 Cloudflare Pages GitHub deployment verification
 Project: flight-search-web
 Source: jack926509/Flight-search-web main via Cloudflare Git provider
+Watch path: frontend/**
