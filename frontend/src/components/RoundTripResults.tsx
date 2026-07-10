@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDuration, formatRelativeTime, sortFlights, type SearchResult, type SortKey } from "@/lib/api";
+import { formatAirlineLabel, formatDuration, formatRelativeTime, sortFlights, type SearchResult, type SortKey } from "@/lib/api";
 import type { SearchStatus } from "@/hooks/useSearch";
 
 interface SegmentProps {
@@ -77,6 +77,7 @@ function RoundTripSegment({
           <ul className="space-y-2" role="listbox" aria-label={`${label}報價選擇`}>
             {sorted.map((flight, idx) => {
               const isSelected = idx === Math.min(selected, sorted.length - 1);
+              const airline = formatAirlineLabel(flight.airline, flight.flight_no);
               return (
                 <li key={`${flight.airline}-${flight.flight_no}-${flight.depart_time}-${idx}`}>
                   <div
@@ -100,12 +101,14 @@ function RoundTripSegment({
                                    ${isSelected ? "border-[#0B5FFF] bg-[#0B5FFF]" : "border-gray-300"}`}
                       />
                       <div className="min-w-0">
-                        <span className="text-sm font-semibold text-gray-800">
-                          {flight.airline}
-                          {flight.flight_no && (
-                            <span className="ml-1 text-xs text-gray-400">{flight.flight_no}</span>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-800">
+                            {airline.name}
+                          </div>
+                          {airline.detail && (
+                            <div className="mt-0.5 text-xs text-gray-400">{airline.detail}</div>
                           )}
-                        </span>
+                        </div>
                         <div className="text-xs text-gray-500">
                           {flight.depart_time} — {formatDuration(flight.duration_min)} — {flight.arrive_time}
                           {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}

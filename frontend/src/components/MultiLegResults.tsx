@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDuration, sortFlights, formatRelativeTime } from "@/lib/api";
+import { formatAirlineLabel, formatDuration, sortFlights, formatRelativeTime } from "@/lib/api";
 import type { Leg, LegState } from "@/hooks/useMultiSearch";
 
 interface Props {
@@ -78,6 +78,7 @@ export default function MultiLegResults({
                 <ul className="space-y-2" role="listbox" aria-label={`第 ${i + 1} 段報價選擇`}>
                   {sorted.map((f, fi) => {
                     const isSelected = fi === Math.min(s.selected, sorted.length - 1);
+                    const airline = formatAirlineLabel(f.airline, f.flight_no);
                     return (
                       <li key={`${f.airline}-${f.flight_no}-${f.depart_time}-${fi}`}>
                         <div
@@ -101,12 +102,14 @@ export default function MultiLegResults({
                                          ${isSelected ? "border-[#0B5FFF] bg-[#0B5FFF]" : "border-gray-300"}`}
                             />
                             <div className="min-w-0">
-                              <span className="text-sm font-semibold text-gray-800">
-                                {f.airline}
-                                {f.flight_no && (
-                                  <span className="ml-1 text-xs text-gray-400">{f.flight_no}</span>
+                              <div>
+                                <div className="text-sm font-semibold text-gray-800">
+                                  {airline.name}
+                                </div>
+                                {airline.detail && (
+                                  <div className="mt-0.5 text-xs text-gray-400">{airline.detail}</div>
                                 )}
-                              </span>
+                              </div>
                               <div className="text-xs text-gray-500">
                                 {f.depart_time} — {formatDuration(f.duration_min)} —{" "}
                                 {f.arrive_time}

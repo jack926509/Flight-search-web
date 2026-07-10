@@ -66,6 +66,10 @@ test.describe("FlightSearch E2E", () => {
     await expect(page.getByLabel("回程日期")).toHaveValue("2030-10-05");
     await page.getByLabel("去程結果").locator("[role='option']").first().waitFor();
     await page.getByLabel("回程結果").locator("[role='option']").first().waitFor();
+    await expect(page.getByText("中華航空")).toBeVisible();
+    await expect(page.getByText("長榮航空")).toBeVisible();
+    await expect(page.getByText("China Airlines・CI100")).toBeVisible();
+    await expect(page.getByText("EVA Air・BR198")).toBeVisible();
 
     const totalText = (await page.getByLabel("來回總價").textContent()) ?? "";
     expect(totalText).toContain("已選 2 / 2 段合計");

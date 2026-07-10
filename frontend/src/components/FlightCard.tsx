@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDuration } from "@/lib/api";
+import { formatAirlineLabel, formatDuration } from "@/lib/api";
 import type { Flight } from "@/lib/api";
 
 interface Props {
@@ -10,13 +10,14 @@ interface Props {
 
 export default function FlightCard({ flight, cheapest }: Props) {
   const hasConversion = !!flight.original_currency && flight.original_currency !== flight.currency;
+  const airline = formatAirlineLabel(flight.airline, flight.flight_no);
 
   return (
     <a
       href={flight.booking_hint}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`${flight.airline} ${flight.flight_no || ""} — ${flight.depart_time} 到 ${flight.arrive_time} — NT$ ${flight.price.toLocaleString()} — 在 Google Flights 查看`}
+      aria-label={`${airline.name} ${airline.detail} — ${flight.depart_time} 到 ${flight.arrive_time} — NT$ ${flight.price.toLocaleString()} — 在 Google Flights 查看`}
       className="block bg-white rounded-xl border border-gray-200 px-5 py-4 hover:shadow-md
                  hover:border-[#0B5FFF] transition-all group min-h-[80px]"
     >
@@ -24,10 +25,12 @@ export default function FlightCard({ flight, cheapest }: Props) {
         {/* Left: airline + route */}
         <div className="flex items-center gap-3 min-w-0">
           <div>
-            <div className="font-semibold text-sm text-gray-800">
-              {flight.airline}
-              {flight.flight_no && (
-                <span className="ml-1 text-xs text-gray-400">{flight.flight_no}</span>
+            <div>
+              <div className="font-semibold text-sm text-gray-800">
+                {airline.name}
+              </div>
+              {airline.detail && (
+                <div className="mt-0.5 text-xs text-gray-400">{airline.detail}</div>
               )}
             </div>
             <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">

@@ -38,6 +38,57 @@ export interface PricePoint {
 
 export type SortKey = "price" | "duration" | "depart";
 
+interface AirlineLabel {
+  zh: string;
+  en: string;
+  code?: string;
+}
+
+const AIRLINE_LABELS: Record<string, AirlineLabel> = {
+  BR: { zh: "長榮航空", en: "EVA Air", code: "BR" },
+  CI: { zh: "中華航空", en: "China Airlines", code: "CI" },
+  HX: { zh: "香港航空", en: "Hong Kong Airlines", code: "HX" },
+  TK: { zh: "土耳其航空", en: "Turkish Airlines", code: "TK" },
+  ZH: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH" },
+  EY: { zh: "阿提哈德航空", en: "Etihad Airways", code: "EY" },
+  MU: { zh: "中國東方航空", en: "China Eastern Airlines", code: "MU" },
+  W4: { zh: "威茲馬爾他航空", en: "Wizz Air Malta", code: "W4" },
+  FR: { zh: "瑞安航空", en: "Ryanair", code: "FR" },
+  CA: { zh: "中國國際航空", en: "Air China", code: "CA" },
+  TW: { zh: "德威航空", en: "T'way Air", code: "TW" },
+  "EVA AIR": { zh: "長榮航空", en: "EVA Air", code: "BR" },
+  "CHINA AIRLINES": { zh: "中華航空", en: "China Airlines", code: "CI" },
+  "HONG KONG AIRLINES": { zh: "香港航空", en: "Hong Kong Airlines", code: "HX" },
+  "TURKISH AIRLINES": { zh: "土耳其航空", en: "Turkish Airlines", code: "TK" },
+  SHENZHEN: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH" },
+};
+
+function airlineCodeFromFlightNo(flightNo: string): string {
+  const match = flightNo.trim().toUpperCase().match(/^([A-Z0-9]{2})\d+/);
+  return match?.[1] ?? "";
+}
+
+export function formatAirlineLabel(airline: string, flightNo = ""): { name: string; detail: string } {
+  const cleanedAirline = airline.trim();
+  const code = airlineCodeFromFlightNo(flightNo) || (/^[A-Z0-9]{2}$/.test(cleanedAirline) ? cleanedAirline : "");
+  const label = AIRLINE_LABELS[code] || AIRLINE_LABELS[cleanedAirline.toUpperCase()];
+
+  if (!label) {
+    return {
+      name: cleanedAirline || "航空公司未提供",
+      detail: flightNo,
+    };
+  }
+
+  const detailParts = [label.en];
+  if (flightNo) detailParts.push(flightNo);
+
+  return {
+    name: label.zh,
+    detail: detailParts.join("・"),
+  };
+}
+
 function authHeaders(): Record<string, string> {
   return API_TOKEN ? { "X-API-Token": API_TOKEN } : {};
 }
