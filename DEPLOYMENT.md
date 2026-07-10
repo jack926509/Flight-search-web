@@ -47,7 +47,7 @@
 
 - Project：`flight-search-web`
 - Production URL：`https://flight-search-web-29x.pages.dev`
-- 最新部署：`https://01e99737.flight-search-web-29x.pages.dev`
+- 最新已驗證部署：`https://4ba58fb1.flight-search-web-29x.pages.dev`（commit `0ae7b13`）
 - 正式部署方式：Cloudflare Pages 內建 GitHub integration，從 `jack926509/Flight-search-web` 的 `main` 分支自動建置
 - GitHub 部署整理：見 [`CLOUDFLARE_GITHUB_DEPLOYMENT.md`](CLOUDFLARE_GITHUB_DEPLOYMENT.md)
 
@@ -74,6 +74,7 @@ Cloudflare Pages production 環境變數：
 改 `NEXT_PUBLIC_*` 變數後必須 **重新 build**（靜態輸出，變數在 build 時固化）；改 `FLIGHT_SEARCH_*` 則重新部署 Pages Function 即可。
 
 > 2026-07-09 整理：Cloudflare Pages `flight-search-web` 已重建為內建 GitHub integration，Git Provider = Yes，連線 `jack926509/Flight-search-web`；截圖中另一個同名 Worker 已刪除。正式方向是保留唯一 Pages，並由 Cloudflare 從 GitHub `main` 自動部署。
+> 2026-07-10 驗收：已在 Cloudflare Dashboard 重新連線 GitHub repo，確認 `git push origin main` 觸發 production deployment `4ba58fb1-9671-45ac-b627-17a9701ebcd4`，正式主網域 `/`、`/deployment.txt`、`/api/health` 均 HTTP 200。
 
 ## 3. 本機開發 / E2E（不進任何後台）
 
@@ -87,7 +88,7 @@ Cloudflare Pages production 環境變數：
 1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` + `schema_v4.sql` 已套用、RLS 已啟用；security/performance advisors 0 筆）
 2. ~~`openssl rand -hex 24` 產生 `API_TOKEN`~~ ✅ 已完成並設於 Zeabur
 3. ~~Zeabur 部署後端~~ ✅ 已完成（Docker / FastAPI / uvicorn）
-4. Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 部署前端與 `functions/` proxy：Direct Upload 舊站已完成；GitHub integration 需依上方設定修正後重新部署
+4. ~~Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 由 GitHub integration 部署前端與 `functions/` proxy~~ ✅ 已完成（commit `0ae7b13` 自動部署成功）
 5. ~~回 Zeabur 把 `ALLOWED_ORIGINS` 改成 Pages 網域 → 重啟~~ ✅ 已完成
 6. UptimeRobot 打 `https://flight-search-api.zeabur.app/api/health`（5 分鐘）⬜ 待設定
 

@@ -95,3 +95,19 @@ Cloudflare Pages 會自動從 GitHub `main` 建置並發布。不要再用 Direc
 - Build command：`npm run build`
 - Output directory：`out`
 - Production / Preview env var keys：`FLIGHT_SEARCH_API_URL`、`FLIGHT_SEARCH_API_TOKEN`
+
+## 2026-07-10 最終驗收紀錄
+
+- Cloudflare Dashboard Git repository：`jack926509/Flight-search-web`
+- 自動部署：已啟用
+- 組建監看式路徑：`*`
+- 驗證 commit：`0ae7b13`（`chore: 驗證 Cloudflare Dashboard GitHub 連線`）
+- Production deployment：`4ba58fb1-9671-45ac-b627-17a9701ebcd4`
+- Deployment URL：`https://4ba58fb1.flight-search-web-29x.pages.dev`
+- Production URL：`https://flight-search-web-29x.pages.dev`
+- 驗收結果：
+  - `npm run build` 通過
+  - `git push origin main` 成功觸發 Cloudflare Pages production deployment
+  - `https://flight-search-web-29x.pages.dev/` HTTP 200
+  - `https://flight-search-web-29x.pages.dev/deployment.txt` HTTP 200，內容含 `Dashboard reconnect verified: 2026-07-10 11:20:06 CST`
+  - `https://flight-search-web-29x.pages.dev/api/health` HTTP 200，回傳 `status: ok`、`db: true`
