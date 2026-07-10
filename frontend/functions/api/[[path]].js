@@ -81,8 +81,8 @@ export async function onRequest({ request, env, params }) {
 
   const responseHeaders = new Headers(SECURITY_HEADERS);
   responseHeaders.set("Cache-Control", "no-store");
-  const contentType = upstream.headers.get("Content-Type");
-  if (contentType) responseHeaders.set("Content-Type", contentType);
+  const upstreamContentType = upstream.headers.get("Content-Type");
+  if (upstreamContentType) responseHeaders.set("Content-Type", upstreamContentType);
 
   return new Response(upstream.body, {
     status: upstream.status,
