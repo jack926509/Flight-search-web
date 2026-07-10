@@ -42,25 +42,28 @@ interface AirlineLabel {
   zh: string;
   en: string;
   code?: string;
+  domain?: string;
 }
 
 const AIRLINE_LABELS: Record<string, AirlineLabel> = {
-  BR: { zh: "長榮航空", en: "EVA Air", code: "BR" },
-  CI: { zh: "中華航空", en: "China Airlines", code: "CI" },
-  HX: { zh: "香港航空", en: "Hong Kong Airlines", code: "HX" },
-  TK: { zh: "土耳其航空", en: "Turkish Airlines", code: "TK" },
-  ZH: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH" },
-  EY: { zh: "阿提哈德航空", en: "Etihad Airways", code: "EY" },
-  MU: { zh: "中國東方航空", en: "China Eastern Airlines", code: "MU" },
-  W4: { zh: "威茲馬爾他航空", en: "Wizz Air Malta", code: "W4" },
-  FR: { zh: "瑞安航空", en: "Ryanair", code: "FR" },
-  CA: { zh: "中國國際航空", en: "Air China", code: "CA" },
-  TW: { zh: "德威航空", en: "T'way Air", code: "TW" },
-  "EVA AIR": { zh: "長榮航空", en: "EVA Air", code: "BR" },
-  "CHINA AIRLINES": { zh: "中華航空", en: "China Airlines", code: "CI" },
-  "HONG KONG AIRLINES": { zh: "香港航空", en: "Hong Kong Airlines", code: "HX" },
-  "TURKISH AIRLINES": { zh: "土耳其航空", en: "Turkish Airlines", code: "TK" },
-  SHENZHEN: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH" },
+  BR: { zh: "長榮航空", en: "EVA Air", code: "BR", domain: "evaair.com" },
+  CI: { zh: "中華航空", en: "China Airlines", code: "CI", domain: "china-airlines.com" },
+  HX: { zh: "香港航空", en: "Hong Kong Airlines", code: "HX", domain: "hongkongairlines.com" },
+  TK: { zh: "土耳其航空", en: "Turkish Airlines", code: "TK", domain: "turkishairlines.com" },
+  ZH: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH", domain: "global.shenzhenair.com" },
+  EY: { zh: "阿提哈德航空", en: "Etihad Airways", code: "EY", domain: "etihad.com" },
+  MU: { zh: "中國東方航空", en: "China Eastern Airlines", code: "MU", domain: "ceair.com" },
+  W4: { zh: "威茲馬爾他航空", en: "Wizz Air Malta", code: "W4", domain: "wizzair.com" },
+  FR: { zh: "瑞安航空", en: "Ryanair", code: "FR", domain: "ryanair.com" },
+  CA: { zh: "中國國際航空", en: "Air China", code: "CA", domain: "airchina.com.cn" },
+  TW: { zh: "德威航空", en: "T'way Air", code: "TW", domain: "twayair.com" },
+  OS: { zh: "奧地利航空", en: "Austrian Airlines", code: "OS", domain: "austrian.com" },
+  "EVA AIR": { zh: "長榮航空", en: "EVA Air", code: "BR", domain: "evaair.com" },
+  "CHINA AIRLINES": { zh: "中華航空", en: "China Airlines", code: "CI", domain: "china-airlines.com" },
+  "HONG KONG AIRLINES": { zh: "香港航空", en: "Hong Kong Airlines", code: "HX", domain: "hongkongairlines.com" },
+  "TURKISH AIRLINES": { zh: "土耳其航空", en: "Turkish Airlines", code: "TK", domain: "turkishairlines.com" },
+  "AUSTRIAN AIRLINES": { zh: "奧地利航空", en: "Austrian Airlines", code: "OS", domain: "austrian.com" },
+  SHENZHEN: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH", domain: "global.shenzhenair.com" },
 };
 
 function airlineCodeFromFlightNo(flightNo: string): string {
@@ -68,7 +71,11 @@ function airlineCodeFromFlightNo(flightNo: string): string {
   return match?.[1] ?? "";
 }
 
-export function formatAirlineLabel(airline: string, flightNo = ""): { name: string; detail: string } {
+function airlineLogoUrl(domain?: string): string {
+  return domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : "";
+}
+
+export function formatAirlineLabel(airline: string, flightNo = ""): { name: string; detail: string; code: string; logoUrl: string } {
   const cleanedAirline = airline.trim();
   const code = airlineCodeFromFlightNo(flightNo) || (/^[A-Z0-9]{2}$/.test(cleanedAirline) ? cleanedAirline : "");
   const label = AIRLINE_LABELS[code] || AIRLINE_LABELS[cleanedAirline.toUpperCase()];
@@ -77,6 +84,8 @@ export function formatAirlineLabel(airline: string, flightNo = ""): { name: stri
     return {
       name: cleanedAirline || "航空公司未提供",
       detail: flightNo,
+      code: code || cleanedAirline.slice(0, 2).toUpperCase(),
+      logoUrl: "",
     };
   }
 
@@ -86,6 +95,8 @@ export function formatAirlineLabel(airline: string, flightNo = ""): { name: stri
   return {
     name: label.zh,
     detail: detailParts.join("・"),
+    code: label.code || code,
+    logoUrl: airlineLogoUrl(label.domain),
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { formatAirlineLabel, formatDuration, sortFlights, formatRelativeTime } from "@/lib/api";
 import type { Leg, LegState } from "@/hooks/useMultiSearch";
+import AirlineIcon from "./AirlineIcon";
 
 interface Props {
   legs: Leg[];
@@ -101,6 +102,7 @@ export default function MultiLegResults({
                               className={`inline-block w-4 h-4 rounded-full border-2 shrink-0
                                          ${isSelected ? "border-[#0B5FFF] bg-[#0B5FFF]" : "border-gray-300"}`}
                             />
+                            <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
                             <div className="min-w-0">
                               <div>
                                 <div className="text-sm font-semibold text-gray-800">

@@ -2,6 +2,7 @@
 
 import { formatAirlineLabel, formatDuration } from "@/lib/api";
 import type { Flight } from "@/lib/api";
+import AirlineIcon from "./AirlineIcon";
 
 interface Props {
   flight: Flight;
@@ -24,7 +25,8 @@ export default function FlightCard({ flight, cheapest }: Props) {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         {/* Left: airline + route */}
         <div className="flex items-center gap-3 min-w-0">
-          <div>
+          <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} />
+          <div className="min-w-0">
             <div>
               <div className="font-semibold text-sm text-gray-800">
                 {airline.name}

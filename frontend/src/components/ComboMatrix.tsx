@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { formatDuration } from "@/lib/api";
+import { formatAirlineLabel, formatDuration } from "@/lib/api";
 import type { Flight } from "@/lib/api";
 import type { ComboLeg, DateResult } from "@/hooks/useComboSearch";
+import AirlineIcon from "./AirlineIcon";
 
 interface Props {
   snapshot: {
@@ -23,18 +24,23 @@ function mmdd(iso: string): string {
 }
 
 function CheapestDetail({ label, date, flight }: { label: string; date: string; flight: Flight }) {
+  const airline = formatAirlineLabel(flight.airline, flight.flight_no);
+
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-gray-50 flex-wrap">
-      <div className="min-w-0">
-        <p className="text-xs text-gray-400">{label}・{date}</p>
-        <p className="text-sm font-semibold text-gray-800">
-          {flight.airline}
-          {flight.flight_no && <span className="ml-1 text-xs text-gray-400">{flight.flight_no}</span>}
-          <span className="ml-2 font-normal text-gray-500">
-            {flight.depart_time} — {formatDuration(flight.duration_min)} — {flight.arrive_time}
-            {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}
-          </span>
-        </p>
+      <div className="flex items-center gap-3 min-w-0">
+        <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
+        <div className="min-w-0">
+          <p className="text-xs text-gray-400">{label}・{date}</p>
+          <p className="text-sm font-semibold text-gray-800">
+            {airline.name}
+            {airline.detail && <span className="ml-1 text-xs text-gray-400">{airline.detail}</span>}
+            <span className="ml-2 font-normal text-gray-500">
+              {flight.depart_time} — {formatDuration(flight.duration_min)} — {flight.arrive_time}
+              {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}
+            </span>
+          </p>
+        </div>
       </div>
       <div className="text-right shrink-0">
         <span className="text-lg font-bold text-[#0A7A3D]">

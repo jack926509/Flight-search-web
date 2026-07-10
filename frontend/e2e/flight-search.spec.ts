@@ -70,6 +70,10 @@ test.describe("FlightSearch E2E", () => {
     await expect(page.getByText("長榮航空")).toBeVisible();
     await expect(page.getByText("China Airlines・CI100")).toBeVisible();
     await expect(page.getByText("EVA Air・BR198")).toBeVisible();
+    await expect(page.getByLabel("中華航空 圖示")).toBeVisible();
+    await expect(page.getByLabel("長榮航空 圖示")).toBeVisible();
+    await expect(page.getByLabel("中華航空 圖示").locator("img")).toHaveAttribute("src", /china-airlines\.com/);
+    await expect(page.getByLabel("長榮航空 圖示").locator("img")).toHaveAttribute("src", /evaair\.com/);
 
     const totalText = (await page.getByLabel("來回總價").textContent()) ?? "";
     expect(totalText).toContain("已選 2 / 2 段合計");

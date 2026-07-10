@@ -2,6 +2,7 @@
 
 import { formatAirlineLabel, formatDuration, formatRelativeTime, sortFlights, type SearchResult, type SortKey } from "@/lib/api";
 import type { SearchStatus } from "@/hooks/useSearch";
+import AirlineIcon from "./AirlineIcon";
 
 interface SegmentProps {
   label: string;
@@ -100,6 +101,7 @@ function RoundTripSegment({
                         className={`inline-block w-4 h-4 rounded-full border-2 shrink-0
                                    ${isSelected ? "border-[#0B5FFF] bg-[#0B5FFF]" : "border-gray-300"}`}
                       />
+                      <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
                       <div className="min-w-0">
                         <div>
                           <div className="text-sm font-semibold text-gray-800">
