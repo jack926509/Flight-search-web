@@ -19,8 +19,8 @@ export default function FlightCard({ flight, cheapest }: Props) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`${airline.name} ${airline.detail} — ${flight.depart_time} 到 ${flight.arrive_time} — NT$ ${flight.price.toLocaleString()} — 在 Google Flights 查看`}
-      className="block bg-white rounded-xl border border-gray-200 px-5 py-4 hover:shadow-md
-                 hover:border-[#0B5FFF] transition-all group min-h-[80px]"
+      className="block bg-white rounded-card border border-gray-200 shadow-card px-5 py-4 hover:shadow-cardHover
+                 hover:border-accent hover:-translate-y-0.5 transition-all duration-200 group min-h-[80px]"
     >
       <div className="flex items-center justify-between gap-4 flex-wrap">
         {/* Left: airline + route */}
@@ -65,12 +65,12 @@ export default function FlightCard({ flight, cheapest }: Props) {
             </div>
           )}
           {cheapest && (
-            <span className="inline-block mt-1 text-xs font-bold text-[#0A7A3D]
-                             bg-green-100 px-2 py-0.5 rounded-full">
+            <span className="inline-block mt-1 text-xs font-bold text-price
+                             bg-price/10 ring-1 ring-price/25 px-2 py-0.5 rounded-full">
               最便宜
             </span>
           )}
-          <div className="text-xs text-[#0B5FFF] group-hover:underline mt-1">
+          <div className="text-xs text-primary group-hover:underline mt-1">
             在 Google Flights 查看 →
           </div>
         </div>

@@ -28,7 +28,7 @@ export default function MultiLegResults({
           <section
             key={i}
             aria-label={`第 ${i + 1} 段結果`}
-            className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+            className="bg-white rounded-card border border-gray-200 shadow-card overflow-hidden"
           >
             <header className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
               <span className="text-sm font-semibold text-gray-700">
@@ -61,8 +61,8 @@ export default function MultiLegResults({
                   <button
                     type="button"
                     onClick={() => onRetryLeg(i)}
-                    className="px-4 py-2 text-sm bg-[#0B5FFF] text-white rounded-lg
-                               hover:bg-blue-700 transition-colors min-h-[44px]"
+                    className="px-4 py-2 text-sm bg-primary text-white rounded-lg
+                               hover:bg-primary-dark transition-colors min-h-[44px]"
                   >
                     重試此段
                   </button>
@@ -93,14 +93,14 @@ export default function MultiLegResults({
                           className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border
                                      cursor-pointer transition-colors min-h-[56px] flex-wrap
                                      ${isSelected
-                                       ? "border-[#0B5FFF] bg-blue-50"
-                                       : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
+                                       ? "border-primary bg-primary/5 shadow-card"
+                                       : "border-gray-200 hover:border-accent/50 hover:bg-gray-50"}`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <span
                               aria-hidden
                               className={`inline-block w-4 h-4 rounded-full border-2 shrink-0
-                                         ${isSelected ? "border-[#0B5FFF] bg-[#0B5FFF]" : "border-gray-300"}`}
+                                         ${isSelected ? "border-primary bg-primary" : "border-gray-300"}`}
                             />
                             <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
                             <div className="min-w-0">
@@ -124,7 +124,7 @@ export default function MultiLegResults({
                               NT$ {f.price.toLocaleString()}
                             </span>
                             {fi === 0 && (
-                              <span className="ml-2 text-xs font-bold text-[#0A7A3D] bg-green-100 px-2 py-0.5 rounded-full">
+                              <span className="ml-2 text-xs font-bold text-price bg-price/10 ring-1 ring-price/25 px-2 py-0.5 rounded-full">
                                 最便宜
                               </span>
                             )}
@@ -133,7 +133,7 @@ export default function MultiLegResults({
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="block text-xs text-[#0B5FFF] hover:underline mt-0.5"
+                              className="block text-xs text-primary hover:underline mt-0.5"
                             >
                               在 Google Flights 查看 →
                             </a>
@@ -152,7 +152,7 @@ export default function MultiLegResults({
       {/* Total bar */}
       <div
         aria-label="多段總價"
-        className="bg-white rounded-xl border-2 border-[#0B5FFF] px-5 py-4
+        className="bg-white rounded-card border-2 border-primary shadow-card px-5 py-4
                    flex items-center justify-between flex-wrap gap-3"
       >
         <div>

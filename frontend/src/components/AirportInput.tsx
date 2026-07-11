@@ -88,7 +88,7 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
         onFocus={() => query && search(query)}
         placeholder="機場代碼或城市"
         className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                   focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                   focus:border-accent focus:ring-1 focus:ring-accent outline-none
                    min-h-[44px]"
       />
       {open && results.length > 0 && (
@@ -107,7 +107,7 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
               className="px-4 py-3 cursor-pointer hover:bg-blue-50 flex items-center gap-3
                          min-h-[44px]"
             >
-              <span className="font-bold text-[#0B5FFF] w-10 shrink-0">{apt.iata}</span>
+              <span className="font-bold text-primary w-10 shrink-0">{apt.iata}</span>
               <span className="text-sm text-gray-700 truncate">
                 {apt.zh ? `${apt.zh.split(" ")[0]}（${apt.city}）` : apt.city}
                 {apt.name !== apt.city ? ` — ${apt.name}` : ""}

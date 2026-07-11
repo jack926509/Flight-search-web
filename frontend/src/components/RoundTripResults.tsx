@@ -39,7 +39,7 @@ function RoundTripSegment({
   return (
     <section
       aria-label={`${label}結果`}
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+      className="bg-white rounded-card border border-gray-200 shadow-card overflow-hidden"
     >
       <header className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
         <div>
@@ -94,14 +94,14 @@ function RoundTripSegment({
                     className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border
                                cursor-pointer transition-colors min-h-[56px] flex-wrap
                                ${isSelected
-                                 ? "border-[#0B5FFF] bg-blue-50"
-                                 : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"}`}
+                                 ? "border-primary bg-primary/5 shadow-card"
+                                 : "border-gray-200 hover:border-accent/50 hover:bg-gray-50"}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span
                         aria-hidden
                         className={`inline-block w-4 h-4 rounded-full border-2 shrink-0
-                                   ${isSelected ? "border-[#0B5FFF] bg-[#0B5FFF]" : "border-gray-300"}`}
+                                   ${isSelected ? "border-primary bg-primary" : "border-gray-300"}`}
                       />
                       <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
                       <div className="min-w-0">
@@ -124,7 +124,7 @@ function RoundTripSegment({
                         NT$ {flight.price.toLocaleString()}
                       </span>
                       {idx === 0 && (
-                        <span className="ml-2 text-xs font-bold text-[#0A7A3D] bg-green-100 px-2 py-0.5 rounded-full">
+                        <span className="ml-2 text-xs font-bold text-price bg-price/10 ring-1 ring-price/25 px-2 py-0.5 rounded-full">
                           最便宜
                         </span>
                       )}
@@ -133,7 +133,7 @@ function RoundTripSegment({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="block text-xs text-[#0B5FFF] hover:underline mt-0.5"
+                        className="block text-xs text-primary hover:underline mt-0.5"
                       >
                         查看訂票線索 →
                       </a>
@@ -166,7 +166,7 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
 
       <div
         aria-label="來回總價"
-        className="bg-white rounded-xl border-2 border-[#0B5FFF] px-5 py-4
+        className="bg-white rounded-card border-2 border-primary shadow-card px-5 py-4
                    flex items-center justify-between flex-wrap gap-3"
       >
         <div>
@@ -193,7 +193,7 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
           <button
             type="button"
             onClick={onRetry}
-            className="px-5 py-2 bg-[#0B5FFF] text-white rounded-lg hover:bg-blue-700
+            className="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark
                        transition-colors min-h-[44px]"
           >
             重新查詢來回航班

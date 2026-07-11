@@ -68,9 +68,9 @@ export default function TrackerDrawer({
             type="button"
             aria-label="關閉追蹤清單背景"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-gray-900/30"
+            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
           />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl flex flex-col">
+          <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white/90 backdrop-blur-md shadow-float flex flex-col">
             <header className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-gray-900">機票追蹤</h2>

@@ -50,7 +50,7 @@ function CheapestDetail({ label, date, flight }: { label: string; date: string; 
           href={flight.booking_hint}
           target="_blank"
           rel="noopener noreferrer"
-          className="block text-xs text-[#0B5FFF] hover:underline"
+          className="block text-xs text-primary hover:underline"
         >
           在 Google Flights 查看 →
         </a>
@@ -90,16 +90,16 @@ export default function ComboMatrix({
       {running && (
         <div
           role="status"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 border border-blue-100 text-sm text-[#0B5FFF]"
+          className="flex items-center gap-3 px-4 py-3 rounded-card bg-blue-50 border border-blue-100 text-sm text-primary"
         >
-          <span className="animate-spin inline-block w-4 h-4 border-2 border-[#0B5FFF]
+          <span className="animate-spin inline-block w-4 h-4 border-2 border-primary
                            border-t-transparent rounded-full shrink-0" />
           組合比價中：已完成 {progress.done} / {progress.total} 個日期查詢（結果逐格填入）
         </div>
       )}
 
       {/* Matrix */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="bg-white rounded-card border border-gray-200 shadow-card p-4">
         <p className="text-sm font-semibold text-gray-700 mb-1">
           組合總價矩陣
           <span className="ml-2 text-xs font-normal text-gray-400">
@@ -165,8 +165,8 @@ export default function ComboMatrix({
                             ${invalid ? "text-gray-300 cursor-not-allowed" : ""}
                             ${!invalid && total === null ? "text-gray-400" : ""}
                             ${total !== null && !isBest && !isPicked ? "hover:bg-blue-50 text-gray-700 cursor-pointer" : ""}
-                            ${isBest && !isPicked ? "bg-green-100 text-[#0A7A3D] font-bold" : ""}
-                            ${isPicked ? "bg-[#0B5FFF] text-white font-bold" : ""}`}
+                            ${isBest && !isPicked ? "bg-price/15 text-price ring-1 ring-price/30 font-bold" : ""}
+                            ${isPicked ? "bg-primary text-white font-bold" : ""}`}
                         >
                           {content}
                           {isBest && !isPicked && (
@@ -191,7 +191,7 @@ export default function ComboMatrix({
       {best && !running && (
         <div
           aria-label="最佳組合"
-          className="bg-white rounded-xl border-2 border-[#0A7A3D] px-5 py-4
+          className="bg-white rounded-card border-2 border-price shadow-card px-5 py-4
                      flex items-center justify-between flex-wrap gap-3"
         >
           <p className="text-sm font-semibold text-gray-700">
@@ -207,7 +207,7 @@ export default function ComboMatrix({
       {picked && pickedA && pickedB && (
         <div
           aria-label="組合明細"
-          className="bg-white rounded-xl border border-gray-200 p-4 space-y-2"
+          className="bg-white rounded-card border border-gray-200 shadow-card p-4 space-y-2"
         >
           <p className="text-sm font-semibold text-gray-700">
             組合明細：{mmdd(picked.a)} 去＋{mmdd(picked.b)} 回＝

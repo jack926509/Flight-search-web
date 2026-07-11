@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
-      <body className="min-h-screen bg-[#F5F7FA]">{children}</body>
+      <body className="min-h-screen bg-hero-gradient bg-fixed">{children}</body>
     </html>
   );
 }

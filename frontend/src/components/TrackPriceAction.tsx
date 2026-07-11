@@ -29,7 +29,7 @@ export default function TrackPriceAction({ defaultPrice, disabled = false, onTra
   };
 
   return (
-    <div className="bg-white border border-blue-100 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+    <div className="bg-white border border-accent/20 rounded-card shadow-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
       <div className="min-w-0">
         <p className="text-sm font-semibold text-gray-800">追蹤此價格</p>
         <p className="text-xs text-gray-400">低於目標價或比上次便宜時，會出現在站內追蹤清單</p>
@@ -46,15 +46,15 @@ export default function TrackPriceAction({ defaultPrice, disabled = false, onTra
           value={target}
           onChange={(e) => setTarget(Number(e.target.value))}
           className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white
-                     focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                     focus:border-accent focus:ring-1 focus:ring-accent outline-none
                      min-h-[40px]"
         />
         <button
           type="button"
           onClick={submit}
           disabled={disabled || status === "saving" || !target || target <= 0}
-          className="px-4 py-2 rounded-lg bg-[#0B5FFF] text-white text-sm font-semibold
-                     hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+          className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold
+                     hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
         >
           {status === "saving" ? "建立中…" : status === "done" ? "已追蹤" : "追蹤"}
         </button>

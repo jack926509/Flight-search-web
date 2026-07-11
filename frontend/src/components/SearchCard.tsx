@@ -45,7 +45,7 @@ export default function SearchCard({
 
   return (
     <div
-      className="bg-white rounded-2xl shadow-md p-6 w-full max-w-3xl mx-auto"
+      className="bg-white/95 backdrop-blur-sm rounded-card shadow-card border border-white/60 p-6 w-full max-w-3xl mx-auto"
       onKeyDown={handleKeyDown}
     >
       <div
@@ -65,7 +65,7 @@ export default function SearchCard({
             onClick={() => onTripTypeChange(item.value)}
             className={`px-4 py-2 rounded-md text-sm font-semibold min-h-[40px] transition-colors ${
               tripType === item.value
-                ? "bg-white text-[#0B5FFF] shadow-sm"
+                ? "bg-white text-primary shadow-sm"
                 : "text-gray-600 hover:text-gray-900"
             }`}
           >
@@ -112,7 +112,7 @@ export default function SearchCard({
             min={today}
             onChange={(e) => onDateChange(e.target.value)}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           />
         </div>
@@ -130,7 +130,7 @@ export default function SearchCard({
               onChange={(e) => onReturnDateChange(e.target.value)}
               aria-invalid={returnDateInvalid}
               className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                         focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                         focus:border-accent focus:ring-1 focus:ring-accent outline-none
                          min-h-[44px]"
             />
             {returnDateInvalid && (
@@ -148,7 +148,7 @@ export default function SearchCard({
             value={adults}
             onChange={(e) => onAdultsChange(Number(e.target.value))}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -166,7 +166,7 @@ export default function SearchCard({
             value={cabin}
             onChange={(e) => onCabinChange(e.target.value)}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           >
             {CABINS.map((c) => (
@@ -181,9 +181,9 @@ export default function SearchCard({
         type="button"
         onClick={onSubmit}
         disabled={loading || !canSubmit}
-        className="w-full bg-[#0B5FFF] text-white font-semibold py-3 px-6 rounded-xl
-                   hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
-                   transition-colors min-h-[48px] flex items-center justify-center gap-2"
+        className="w-full bg-cta-gradient text-white font-semibold py-3 px-6 rounded-xl shadow-card
+                   hover:shadow-cardHover hover:brightness-[1.04] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
+                   transition-all min-h-[48px] flex items-center justify-center gap-2"
       >
         {loading ? (
           <>

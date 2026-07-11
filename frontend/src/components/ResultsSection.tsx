@@ -75,7 +75,7 @@ export default function ResultsSection({
           <button
             type="button"
             onClick={onRetry}
-            className="px-5 py-2 bg-[#0B5FFF] text-white rounded-lg hover:bg-blue-700
+            className="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark
                        transition-colors min-h-[44px]"
           >
             重試
@@ -126,10 +126,10 @@ export default function ResultsSection({
                 type="button"
                 onClick={() => onSortChange(tab.key)}
                 className={`px-4 py-2 rounded-full text-sm font-medium shrink-0 min-h-[44px]
-                  transition-colors ${
+                  transition-all ${
                     sortBy === tab.key
-                      ? "bg-[#0B5FFF] text-white"
-                      : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                      ? "bg-cta-gradient text-white shadow-card"
+                      : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
                   }`}
               >
                 {tab.label}

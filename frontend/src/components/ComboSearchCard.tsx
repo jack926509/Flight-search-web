@@ -72,7 +72,7 @@ function LegRow({
             min={today}
             onChange={(e) => onChange({ ...leg, date: e.target.value })}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           />
         </div>
@@ -88,7 +88,7 @@ function LegRow({
             value={leg.flex}
             onChange={(e) => onChange({ ...leg, flex: Number(e.target.value) })}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           >
             {Array.from({ length: MAX_FLEX + 1 }, (_, n) => (
@@ -111,7 +111,7 @@ export default function ComboSearchCard({
     (filled ? datesFor(legA, today).length + datesFor(legB, today).length : 0);
 
   return (
-    <div className="bg-white rounded-2xl shadow-md p-6 w-full max-w-3xl mx-auto">
+    <div className="bg-white/95 backdrop-blur-sm rounded-card shadow-card border border-white/60 p-6 w-full max-w-3xl mx-auto">
       <p className="text-xs text-gray-400 mb-4">
         外站組合比價：兩段各設基準日期＋彈性範圍，比出「哪天去＋哪天回」總價最低。
         每個日期查一次（共 {totalQueries || "—"} 次），未快取時約需 1–3 分鐘，結果逐格填入。
@@ -146,7 +146,7 @@ export default function ComboSearchCard({
             value={adults}
             onChange={(e) => onAdultsChange(Number(e.target.value))}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -163,7 +163,7 @@ export default function ComboSearchCard({
             value={cabin}
             onChange={(e) => onCabinChange(e.target.value)}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-[#0B5FFF] focus:ring-1 focus:ring-[#0B5FFF] outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
                        min-h-[44px]"
           >
             {CABINS.map((c) => (
@@ -177,9 +177,9 @@ export default function ComboSearchCard({
         type="button"
         onClick={onSubmit}
         disabled={running || !filled}
-        className="w-full bg-[#0B5FFF] text-white font-semibold py-3 px-6 rounded-xl
-                   hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed
-                   transition-colors min-h-[48px] flex items-center justify-center gap-2"
+        className="w-full bg-cta-gradient text-white font-semibold py-3 px-6 rounded-xl shadow-card
+                   hover:shadow-cardHover hover:brightness-[1.04] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
+                   transition-all min-h-[48px] flex items-center justify-center gap-2"
       >
         {running ? (
           <>

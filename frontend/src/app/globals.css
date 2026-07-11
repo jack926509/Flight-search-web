@@ -19,7 +19,8 @@
 html {
   font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  background: var(--color-bg);
+  /* 與 hero-gradient 起點同色，避免捲動溢出時露出灰底 */
+  background: #f2f7ff;
   color: #1a1a2e;
 }
 

@@ -56,8 +56,10 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="h-14 bg-white shadow-sm flex items-center px-6 justify-between">
-        <h1 className="text-lg font-bold text-gray-900">✈ FlightSearch</h1>
+      {/* 毛玻璃底層放獨立元素：backdrop-filter 若放在 header 本身，會使內部 fixed 定位的浮層（追蹤面板）以 header 為基準而破版 */}
+      <header className="sticky top-0 z-40 h-14 border-b border-white/50 shadow-sm flex items-center px-6 justify-between">
+        <div aria-hidden className="absolute inset-0 -z-10 bg-white/75 backdrop-blur-md" />
+        <h1 className="text-lg font-extrabold bg-cta-gradient bg-clip-text text-transparent">✈ FlightSearch</h1>
         <div className="flex items-center gap-3">
           <TrackerDrawer
             trackers={trackers.trackers}
@@ -94,10 +96,10 @@ export default function SearchPage() {
             aria-selected={mode === "single"}
             type="button"
             onClick={() => setMode("single")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-colors ${
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
               mode === "single"
-                ? "bg-[#0B5FFF] text-white"
-                : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                ? "bg-cta-gradient text-white shadow-card"
+                : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
             }`}
           >
             單程 / 來回
@@ -107,10 +109,10 @@ export default function SearchPage() {
             aria-selected={mode === "multi"}
             type="button"
             onClick={() => setMode("multi")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-colors ${
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
               mode === "multi"
-                ? "bg-[#0B5FFF] text-white"
-                : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                ? "bg-cta-gradient text-white shadow-card"
+                : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
             }`}
           >
             多段行程（外站・四腿）
@@ -120,10 +122,10 @@ export default function SearchPage() {
             aria-selected={mode === "combo"}
             type="button"
             onClick={() => setMode("combo")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-colors ${
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
               mode === "combo"
-                ? "bg-[#0B5FFF] text-white"
-                : "bg-white border border-gray-300 text-gray-600 hover:bg-gray-50"
+                ? "bg-cta-gradient text-white shadow-card"
+                : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
             }`}
           >
             外站組合比價
