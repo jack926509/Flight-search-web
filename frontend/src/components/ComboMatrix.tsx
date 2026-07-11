@@ -5,6 +5,7 @@ import { formatAirlineLabel, formatDuration } from "@/lib/api";
 import type { Flight } from "@/lib/api";
 import type { ComboLeg, DateResult } from "@/hooks/useComboSearch";
 import AirlineIcon from "./AirlineIcon";
+import ShareLinkButton from "./ShareLinkButton";
 
 interface Props {
   snapshot: {
@@ -84,8 +85,20 @@ export default function ComboMatrix({
   const pickedA = picked && resultsA[picked.a]?.cheapest;
   const pickedB = picked && resultsB[picked.b]?.cheapest;
 
+  // 結果出現後才顯示分享按鈕：至少一格已經有報價（不含還在查詢中的空矩陣）
+  const hasAnyResult =
+    Object.values(resultsA).some((r) => r.cheapest) ||
+    Object.values(resultsB).some((r) => r.cheapest);
+
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4 mt-6">
+      {/* Share */}
+      {hasAnyResult && (
+        <div className="flex justify-end">
+          <ShareLinkButton />
+        </div>
+      )}
+
       {/* Progress */}
       {running && (
         <div

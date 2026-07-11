@@ -1,12 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import FlightCard from "./FlightCard";
 import LoadingSkeleton from "./LoadingSkeleton";
 import PriceTrendSection from "./PriceTrendChart";
 import TrackPriceAction from "./TrackPriceAction";
+import ShareLinkButton from "./ShareLinkButton";
+import FlightFilterBar from "./FlightFilterBar";
+import FilteredEmptyState from "./FilteredEmptyState";
 import { sortFlights, formatRelativeTime, type SortKey } from "@/lib/api";
 import type { SearchResult } from "@/lib/api";
 import type { SearchStatus } from "@/hooks/useSearch";
+import { filterFlights, EMPTY_FLIGHT_FILTER, type FlightFilterState } from "@/lib/filterFlights";
 
 const SORT_TABS: { key: SortKey; label: string }[] = [
   { key: "price", label: "最低價" },
@@ -31,9 +36,18 @@ export default function ResultsSection({
   status, result, error, sortBy, origin, dest,
   onSortChange, onRetry, onGoDate, onTrackPrice,
 }: Props) {
+  const [filters, setFilters] = useState<FlightFilterState>(EMPTY_FLIGHT_FILTER);
+
+  // 換一批新結果時（result 參照改變）重置篩選狀態
+  useEffect(() => {
+    setFilters(EMPTY_FLIGHT_FILTER);
+  }, [result]);
+
   if (status === "idle") return null;
 
   const route = `${origin}-${dest}`;
+  const filteredFlights = result ? filterFlights(result.flights, filters) : [];
+  const sortedFlights = sortFlights(filteredFlights, sortBy);
 
   return (
     <div className="w-full max-w-3xl mx-auto space-y-4 mt-6">
@@ -137,11 +151,17 @@ export default function ResultsSection({
             ))}
           </div>
 
-          {/* Source info */}
-          <p className="text-xs text-gray-400">
-            資料來源：{result.source === "cache" ? "快取" : result.source === "fast_flights" ? "Google Flights" : "Kiwi.com"}
-            ・{formatRelativeTime(result.fetched_at)}
-          </p>
+          {/* Source info + share */}
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs text-gray-400">
+              資料來源：{result.source === "cache" ? "快取" : result.source === "fast_flights" ? "Google Flights" : "Kiwi.com"}
+              ・{formatRelativeTime(result.fetched_at)}
+            </p>
+            <ShareLinkButton />
+          </div>
+
+          {/* Filter chips */}
+          <FlightFilterBar flights={result.flights} filters={filters} onChange={setFilters} />
 
           {onTrackPrice && (
             <TrackPriceAction
@@ -151,15 +171,19 @@ export default function ResultsSection({
           )}
 
           {/* Cards */}
-          <div className="space-y-3">
-            {sortFlights(result.flights, sortBy).map((f, i) => (
-              <FlightCard
-                key={`${f.flight_no}-${f.depart_time}-${i}`}
-                flight={f}
-                cheapest={i === 0 && sortBy === "price"}
-              />
-            ))}
-          </div>
+          {sortedFlights.length > 0 ? (
+            <div className="space-y-3">
+              {sortedFlights.map((f, i) => (
+                <FlightCard
+                  key={`${f.flight_no}-${f.depart_time}-${i}`}
+                  flight={f}
+                  cheapest={i === 0 && sortBy === "price"}
+                />
+              ))}
+            </div>
+          ) : (
+            <FilteredEmptyState onClear={() => setFilters(EMPTY_FLIGHT_FILTER)} />
+          )}
 
           {/* Price trend */}
           <PriceTrendSection route={route} />

@@ -92,6 +92,8 @@ export function useComboSearch() {
 
   const requestIdRef = useRef(0);
   const autoSearchedRef = useRef(false);
+  // 新一輪查詢開始前 abort 上一輪，讓後端協程與 fast-flights semaphore 及早釋放（M4）
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const filled = !!(legA.origin && legA.dest && legA.date && legB.origin && legB.dest && legB.date);
 
@@ -102,11 +104,12 @@ export function useComboSearch() {
       date: string,
       a: number,
       c: string,
-      reqId: number
+      reqId: number,
+      signal?: AbortSignal
     ) => {
       const setResults = which === "A" ? setResultsA : setResultsB;
       try {
-        const data = await searchFlights(leg.origin, leg.dest, date, a, c);
+        const data = await searchFlights(leg.origin, leg.dest, date, a, c, signal);
         if (reqId !== requestIdRef.current) return;
         const cheapest =
           data.flights.length > 0 ? sortFlights(data.flights, "price")[0] : null;
@@ -128,6 +131,9 @@ export function useComboSearch() {
 
   const runSearch = useCallback(async () => {
     if (!filled) return;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     const reqId = ++requestIdRef.current;
 
     const dA = datesFor(legA, today);
@@ -158,7 +164,7 @@ export function useComboSearch() {
       while (next < tasks.length) {
         if (reqId !== requestIdRef.current) return; // 新一輪查詢已開始
         const t = tasks[next++];
-        await searchOneDate(t.which, t.leg, t.date, adults, cabin, reqId);
+        await searchOneDate(t.which, t.leg, t.date, adults, cabin, reqId, controller.signal);
       }
     };
     await Promise.all(

@@ -22,6 +22,7 @@ _CABIN_MAP = {
 
 _BLOCK_SIGNALS = ("captcha", "unusual traffic", "too many requests")
 _THROTTLE_HOURS = int(os.getenv("THROTTLE_HOURS", "24"))
+_FETCH_TIMEOUT_S = 25
 
 
 def _is_retryable_ff(exc: BaseException) -> bool:
@@ -136,7 +137,11 @@ class FastFlightsProvider(FlightProvider):
         return get_flights(query, proxy=self._proxy), query
 
     async def _fetch_with_retry(self, origin: str, dest: str, date: str, adults: int, cabin: str):
-        """Run sync fetch in thread with tenacity retry (×2 for non-block errors)."""
+        """Run sync fetch in thread with tenacity retry (×2 for non-block errors)。
+        每次嘗試外層包硬性逾時：上游進入網路黑洞（DNS 停滯／TCP 不回）時，
+        to_thread 的 future 不會自己失敗，必須靠 asyncio.timeout 主動視為可重試失敗，
+        否則 semaphore 永不釋放、熔斷器永遠不計失敗、chain 也永遠 failover 不到 Kiwi。
+        """
         async for attempt in AsyncRetrying(
             retry=retry_if_exception(_is_retryable_ff),
             wait=wait_exponential(multiplier=1, min=1, max=2),
@@ -144,7 +149,8 @@ class FastFlightsProvider(FlightProvider):
             reraise=True,
         ):
             with attempt:
-                return await asyncio.to_thread(self._run_sync, origin, dest, date, adults, cabin)
+                async with asyncio.timeout(_FETCH_TIMEOUT_S):
+                    return await asyncio.to_thread(self._run_sync, origin, dest, date, adults, cabin)
 
     async def _persist_throttle(self) -> None:
         if self._db is None:
@@ -171,10 +177,12 @@ class FastFlightsProvider(FlightProvider):
         adults: int = 1,
         cabin: str = "economy",
     ) -> SearchResult:
-        async with _SEMAPHORE:
-            jitter = random.uniform(3.0, 6.0)
-            await asyncio.sleep(jitter)
+        # jitter 移到鎖外：只延遲「取得鎖前」的節奏，不佔用全域序列化的鎖時間，
+        # 避免 combo/multi 這類批量查詢的尾端請求因鎖內等待疊加而逾時（M1）。
+        jitter = random.uniform(3.0, 6.0)
+        await asyncio.sleep(jitter)
 
+        async with _SEMAPHORE:
             try:
                 result, _ = await self._fetch_with_retry(origin, dest, date, adults, cabin)
             except Exception as exc:

@@ -69,6 +69,8 @@ export function useSearch() {
 
   // Monotonic id so a slow earlier response can't overwrite a newer one
   const requestIdRef = useRef(0);
+  // 新搜尋開始前 abort 上一個，讓後端協程與 fast-flights semaphore 及早釋放（M4）
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const pushUrl = useCallback(
     (o: string, d: string, dt: string, a: number, c: string, trip: TripType, ret?: string) => {
@@ -97,6 +99,9 @@ export function useSearch() {
   const doSearch = useCallback(
     async (o: string, d: string, dt: string, a: number, c: string) => {
       if (!o || !d || !dt) return;
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       const reqId = ++requestIdRef.current;
       setStatus("loading");
       setResult(null);
@@ -109,12 +114,12 @@ export function useSearch() {
       pushUrl(o, d, dt, a, c, "one-way");
 
       try {
-        const data = await searchFlights(o, d, dt, a, c);
+        const data = await searchFlights(o, d, dt, a, c, controller.signal);
         if (reqId !== requestIdRef.current) return; // superseded by a newer search
         setStatus(statusForResult(data));
         setResult(data);
       } catch (e) {
-        if (reqId !== requestIdRef.current) return;
+        if (reqId !== requestIdRef.current) return; // 含被 abort 取代的舊搜尋，靜默忽略
         setStatus("error");
         setError(e instanceof Error ? e.message : "查詢失敗");
       }
@@ -125,6 +130,9 @@ export function useSearch() {
   const doRoundTripSearch = useCallback(
     async (o: string, d: string, dt: string, ret: string, a: number, c: string) => {
       if (!o || !d || !dt || !ret) return;
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       const reqId = ++requestIdRef.current;
       setStatus("loading");
       setReturnStatus("loading");
@@ -137,10 +145,10 @@ export function useSearch() {
       pushUrl(o, d, dt, a, c, "round-trip", ret);
 
       const [outbound, inbound] = await Promise.allSettled([
-        searchFlights(o, d, dt, a, c),
-        searchFlights(d, o, ret, a, c),
+        searchFlights(o, d, dt, a, c, controller.signal),
+        searchFlights(d, o, ret, a, c, controller.signal),
       ]);
-      if (reqId !== requestIdRef.current) return;
+      if (reqId !== requestIdRef.current) return; // 含被 abort 取代的舊搜尋，靜默忽略
 
       if (outbound.status === "fulfilled") {
         setStatus(statusForResult(outbound.value));

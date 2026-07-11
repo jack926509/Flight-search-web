@@ -1,8 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { formatAirlineLabel, formatDuration, sortFlights, formatRelativeTime } from "@/lib/api";
 import type { Leg, LegState } from "@/hooks/useMultiSearch";
 import AirlineIcon from "./AirlineIcon";
+import ShareLinkButton from "./ShareLinkButton";
+import FlightFilterBar from "./FlightFilterBar";
+import FilteredEmptyState from "./FilteredEmptyState";
+import { matchesFlightFilter, EMPTY_FLIGHT_FILTER, type FlightFilterState } from "@/lib/filterFlights";
 
 interface Props {
   legs: Leg[];
@@ -16,14 +21,46 @@ interface Props {
 export default function MultiLegResults({
   legs, legStates, total, unpricedCount, onRetryLeg, onSelectFlight,
 }: Props) {
+  const [filters, setFilters] = useState<FlightFilterState>(EMPTY_FLIGHT_FILTER);
+  const clearFilters = () => setFilters(EMPTY_FLIGHT_FILTER);
+
+  // 換一批新結果時重置篩選狀態。用 fetched_at 組字串當 key（而非 legStates 陣列本身參照），
+  // 避免使用者只是點選某個報價（selectFlight 也會換新的 legStates 參照）就誤觸重置。
+  const resultsKey = legStates.map((s) => s.result?.fetched_at ?? "").join("|");
+  useEffect(() => {
+    setFilters(EMPTY_FLIGHT_FILTER);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsKey]);
+
   const anyActivity = legStates.some((s) => s.status !== "idle");
   if (!anyActivity) return null;
 
+  const hasAnyFlights = legStates.some((s) => (s.result?.flights.length ?? 0) > 0);
+
   return (
     <div className="w-full max-w-3xl mx-auto space-y-5 mt-6">
+      {hasAnyFlights && (
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <FlightFilterBar
+            flights={[]}
+            filters={filters}
+            onChange={setFilters}
+            showAirlineFilter={false}
+            showTimeFilter={false}
+          />
+          <ShareLinkButton />
+        </div>
+      )}
+
       {legs.map((leg, i) => {
         const s = legStates[i];
-        const sorted = s.result ? sortFlights(s.result.flights, "price") : [];
+        // fullSorted 的排序須與 useMultiSearch.ts 內 total 計算用的 sortFlights(...,"price")
+        // 完全一致，因為 s.selected 是「該排序陣列的索引」；篩選只能決定顯示哪些項目。
+        const fullSorted = s.result ? sortFlights(s.result.flights, "price") : [];
+        const visible = fullSorted
+          .map((flight, originalIdx) => ({ flight, originalIdx }))
+          .filter(({ flight }) => matchesFlightFilter(flight, filters));
+        const filteredOut = !!s.result && s.result.flights.length > 0 && visible.length === 0;
         return (
           <section
             key={i}
@@ -75,20 +112,24 @@ export default function MultiLegResults({
                 </p>
               )}
 
-              {(s.status === "success" || s.status === "stale") && sorted.length > 0 && (
+              {(s.status === "success" || s.status === "stale") && filteredOut && (
+                <FilteredEmptyState onClear={clearFilters} />
+              )}
+
+              {(s.status === "success" || s.status === "stale") && visible.length > 0 && (
                 <ul className="space-y-2" role="listbox" aria-label={`第 ${i + 1} 段報價選擇`}>
-                  {sorted.map((f, fi) => {
-                    const isSelected = fi === Math.min(s.selected, sorted.length - 1);
+                  {visible.map(({ flight: f, originalIdx }) => {
+                    const isSelected = originalIdx === Math.min(s.selected, fullSorted.length - 1);
                     const airline = formatAirlineLabel(f.airline, f.flight_no);
                     return (
-                      <li key={`${f.airline}-${f.flight_no}-${f.depart_time}-${fi}`}>
+                      <li key={`${f.airline}-${f.flight_no}-${f.depart_time}-${originalIdx}`}>
                         <div
                           role="option"
                           aria-selected={isSelected}
                           tabIndex={0}
-                          onClick={() => onSelectFlight(i, fi)}
+                          onClick={() => onSelectFlight(i, originalIdx)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") onSelectFlight(i, fi);
+                            if (e.key === "Enter" || e.key === " ") onSelectFlight(i, originalIdx);
                           }}
                           className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border
                                      cursor-pointer transition-colors min-h-[56px] flex-wrap
@@ -123,7 +164,7 @@ export default function MultiLegResults({
                             <span className="text-lg font-bold text-[#0A7A3D]">
                               NT$ {f.price.toLocaleString()}
                             </span>
-                            {fi === 0 && (
+                            {originalIdx === 0 && (
                               <span className="ml-2 text-xs font-bold text-price bg-price/10 ring-1 ring-price/25 px-2 py-0.5 rounded-full">
                                 最便宜
                               </span>

@@ -169,6 +169,22 @@ async def _tracker_db():
         raise HTTPException(status_code=503, detail="Database unavailable")
 
 
+_TRACKER_DB_TIMEOUT_S = 8
+_TRACKER_DB_ERROR_DETAIL = "資料庫暫時無法使用，請稍後再試"
+
+
+async def _tracker_op(coro):
+    """對單一 tracker_repo 呼叫加硬性逾時；逾時或例外統一轉 503（比照 history 端點 main.py:421 附近寫法），
+    避免 Supabase 查詢黑洞讓 tracker CRUD 請求永久掛住。"""
+    try:
+        async with asyncio.timeout(_TRACKER_DB_TIMEOUT_S):
+            return await coro
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail=_TRACKER_DB_ERROR_DETAIL)
+
+
 @app.middleware("http")
 async def api_token_middleware(request: Request, call_next):
     required_token = os.getenv("API_TOKEN", "")
@@ -245,7 +261,7 @@ async def health():
 
 
 @app.get("/api/search")
-@_limiter.limit("20/minute")
+@_limiter.limit("40/minute")
 async def search_flights(
     request: Request,
     origin: str = Query(..., description="IATA origin airport code"),
@@ -320,9 +336,11 @@ async def create_tracker(
         except Exception:
             current_price = None
 
-    tracker = await tracker_repo.create_tracker(
-        db,
-        create_tracker_payload(payload, tracker_key_hash, current_price),
+    tracker = await _tracker_op(
+        tracker_repo.create_tracker(
+            db,
+            create_tracker_payload(payload, tracker_key_hash, current_price),
+        )
     )
     return {
         "tracker_key": raw_key if not x_tracker_key else None,
@@ -339,8 +357,8 @@ async def list_trackers(
 ):
     tracker_key_hash = _tracker_hash_from_header(x_tracker_key)
     db = await _tracker_db()
-    trackers = await tracker_repo.list_trackers(db, tracker_key_hash)
-    events = await tracker_repo.list_events(db, tracker_key_hash)
+    trackers = await _tracker_op(tracker_repo.list_trackers(db, tracker_key_hash))
+    events = await _tracker_op(tracker_repo.list_events(db, tracker_key_hash))
     return {
         "trackers": trackers,
         "events": events,
@@ -369,18 +387,18 @@ async def update_tracker(
 
     tracker = None
     if changes:
-        tracker = await tracker_repo.update_tracker(db, tracker_id, tracker_key_hash, changes)
+        tracker = await _tracker_op(tracker_repo.update_tracker(db, tracker_id, tracker_key_hash, changes))
         if tracker is None:
             raise HTTPException(status_code=404, detail="Tracker not found")
     else:
-        tracker = await tracker_repo.get_tracker_for_owner(db, tracker_id, tracker_key_hash)
+        tracker = await _tracker_op(tracker_repo.get_tracker_for_owner(db, tracker_id, tracker_key_hash))
         if tracker is None:
             raise HTTPException(status_code=404, detail="Tracker not found")
 
     if payload.mark_all_read:
-        await tracker_repo.mark_events_read(db, tracker_key_hash, tracker_id)
+        await _tracker_op(tracker_repo.mark_events_read(db, tracker_key_hash, tracker_id))
 
-    events = await tracker_repo.list_events(db, tracker_key_hash)
+    events = await _tracker_op(tracker_repo.list_events(db, tracker_key_hash))
     return {
         "tracker": tracker,
         "events": events,
@@ -397,7 +415,7 @@ async def delete_tracker(
 ):
     tracker_key_hash = _tracker_hash_from_header(x_tracker_key)
     db = await _tracker_db()
-    deleted = await tracker_repo.delete_tracker(db, tracker_id, tracker_key_hash)
+    deleted = await _tracker_op(tracker_repo.delete_tracker(db, tracker_id, tracker_key_hash))
     if not deleted:
         raise HTTPException(status_code=404, detail="Tracker not found")
     return {"ok": True}

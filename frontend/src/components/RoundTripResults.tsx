@@ -1,9 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { formatAirlineLabel, formatDuration, formatRelativeTime, sortFlights, type SearchResult, type SortKey } from "@/lib/api";
 import type { SearchStatus } from "@/hooks/useSearch";
 import AirlineIcon from "./AirlineIcon";
 import TrackPriceAction from "./TrackPriceAction";
+import ShareLinkButton from "./ShareLinkButton";
+import FlightFilterBar from "./FlightFilterBar";
+import FilteredEmptyState from "./FilteredEmptyState";
+import { matchesFlightFilter, EMPTY_FLIGHT_FILTER, type FlightFilterState } from "@/lib/filterFlights";
 
 interface SegmentProps {
   label: string;
@@ -15,6 +20,12 @@ interface SegmentProps {
   selected: number;
   sortBy: SortKey;
   onSelect: (idx: number) => void;
+}
+
+/** RoundTripSegment 內部渲染用：外加篩選狀態（由父層 RoundTripResults 統一管理） */
+interface SegmentRenderProps extends SegmentProps {
+  filters: FlightFilterState;
+  onClearFilters: () => void;
 }
 
 interface Props {
@@ -32,9 +43,16 @@ function sourceLabel(source: string): string {
 }
 
 function RoundTripSegment({
-  label, route, date, status, result, error, selected, sortBy, onSelect,
-}: SegmentProps) {
-  const sorted = result ? sortFlights(result.flights, sortBy) : [];
+  label, route, date, status, result, error, selected, sortBy, onSelect, filters, onClearFilters,
+}: SegmentRenderProps) {
+  // fullSorted 的排序與索引須與 useSearch.ts 內 sortedOutbound/sortedReturn 完全一致，
+  // 因為 selected（連動總價計算）是「該排序陣列的索引」——篩選只能決定「顯示哪些項目」，
+  // 不能改變索引意義，否則會選到別的航班、總價與畫面對不上。
+  const fullSorted = result ? sortFlights(result.flights, sortBy) : [];
+  const visible = fullSorted
+    .map((flight, originalIdx) => ({ flight, originalIdx }))
+    .filter(({ flight }) => matchesFlightFilter(flight, filters));
+  const filteredOut = !!result && result.flights.length > 0 && visible.length === 0;
 
   return (
     <section
@@ -76,20 +94,24 @@ function RoundTripSegment({
           </p>
         )}
 
-        {(status === "success" || status === "stale") && sorted.length > 0 && (
+        {(status === "success" || status === "stale") && filteredOut && (
+          <FilteredEmptyState onClear={onClearFilters} />
+        )}
+
+        {(status === "success" || status === "stale") && visible.length > 0 && (
           <ul className="space-y-2" role="listbox" aria-label={`${label}報價選擇`}>
-            {sorted.map((flight, idx) => {
-              const isSelected = idx === Math.min(selected, sorted.length - 1);
+            {visible.map(({ flight, originalIdx }) => {
+              const isSelected = originalIdx === Math.min(selected, fullSorted.length - 1);
               const airline = formatAirlineLabel(flight.airline, flight.flight_no);
               return (
-                <li key={`${flight.airline}-${flight.flight_no}-${flight.depart_time}-${idx}`}>
+                <li key={`${flight.airline}-${flight.flight_no}-${flight.depart_time}-${originalIdx}`}>
                   <div
                     role="option"
                     aria-selected={isSelected}
                     tabIndex={0}
-                    onClick={() => onSelect(idx)}
+                    onClick={() => onSelect(originalIdx)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") onSelect(idx);
+                      if (e.key === "Enter" || e.key === " ") onSelect(originalIdx);
                     }}
                     className={`flex items-center justify-between gap-3 px-4 py-3 rounded-lg border
                                cursor-pointer transition-colors min-h-[56px] flex-wrap
@@ -123,7 +145,7 @@ function RoundTripSegment({
                       <span className="text-lg font-bold text-[#0A7A3D]">
                         NT$ {flight.price.toLocaleString()}
                       </span>
-                      {idx === 0 && (
+                      {originalIdx === 0 && (
                         <span className="ml-2 text-xs font-bold text-price bg-price/10 ring-1 ring-price/25 px-2 py-0.5 rounded-full">
                           最便宜
                         </span>
@@ -150,6 +172,13 @@ function RoundTripSegment({
 }
 
 export default function RoundTripResults({ outbound, inbound, total, onRetry, onTrackPrice }: Props) {
+  const [filters, setFilters] = useState<FlightFilterState>(EMPTY_FLIGHT_FILTER);
+
+  // 換一批新結果時（去程或回程的 result 參照改變）重置篩選狀態
+  useEffect(() => {
+    setFilters(EMPTY_FLIGHT_FILTER);
+  }, [outbound.result, inbound.result]);
+
   const anyActivity = outbound.status !== "idle" || inbound.status !== "idle";
   if (!anyActivity) return null;
 
@@ -157,11 +186,26 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
     (outbound.result && outbound.result.flights.length > 0 ? 1 : 0) +
     (inbound.result && inbound.result.flights.length > 0 ? 1 : 0);
 
+  const hasAnyFlights =
+    (outbound.result?.flights.length ?? 0) > 0 || (inbound.result?.flights.length ?? 0) > 0;
+  const combinedFlightsForOptions = [
+    ...(outbound.result?.flights ?? []),
+    ...(inbound.result?.flights ?? []),
+  ];
+  const clearFilters = () => setFilters(EMPTY_FLIGHT_FILTER);
+
   return (
     <div className="w-full max-w-3xl lg:max-w-6xl mx-auto space-y-5 mt-6">
+      {hasAnyFlights && (
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <FlightFilterBar flights={combinedFlightsForOptions} filters={filters} onChange={setFilters} />
+          <ShareLinkButton />
+        </div>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-2">
-        <RoundTripSegment {...outbound} />
-        <RoundTripSegment {...inbound} />
+        <RoundTripSegment {...outbound} filters={filters} onClearFilters={clearFilters} />
+        <RoundTripSegment {...inbound} filters={filters} onClearFilters={clearFilters} />
       </div>
 
       <div

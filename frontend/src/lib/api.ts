@@ -185,7 +185,8 @@ export async function searchFlights(
   dest: string,
   date: string,
   adults: number,
-  cabin: string
+  cabin: string,
+  signal?: AbortSignal
 ): Promise<SearchResult> {
   const url = apiUrl("/api/search");
   url.searchParams.set("origin", origin);
@@ -195,13 +196,16 @@ export async function searchFlights(
   url.searchParams.set("cabin", cabin);
 
   // 後端最長路徑（fast-flights 3-8s + failover Kiwi ~10s + jitter）約 30s；
-  // 逾時不中斷就會永遠停在骨架屏，必須以 AbortController 兜底
+  // 逾時不中斷就會永遠停在骨架屏，必須以 AbortController 兜底。
+  // signal 為呼叫端（hook）在「新搜尋開始前」用來 abort 舊搜尋的外部訊號，與 45s 逾時合併。
+  const timeoutSignal = AbortSignal.timeout(45_000);
+  const combinedSignal = signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal;
   let resp: Response;
   try {
     resp = await fetch(url.toString(), {
       headers: authHeaders(),
       cache: "no-store",
-      signal: AbortSignal.timeout(45_000),
+      signal: combinedSignal,
     });
   } catch (e) {
     throw friendlyFetchError(e);

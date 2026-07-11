@@ -70,6 +70,8 @@ export function useMultiSearch() {
   const requestIdRef = useRef(0);
   // 初次載入若 URL 帶 mode=multi&legs=… 自動查詢（只觸發一次）
   const autoSearchedRef = useRef(false);
+  // 新一輪查詢開始前 abort 上一輪，讓後端協程與 fast-flights semaphore 及早釋放（M4）
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const updateLeg = (idx: number, patch: Partial<Leg>) => {
     setLegs((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -97,9 +99,9 @@ export function useMultiSearch() {
   const allLegsFilled = legs.every((l) => l.origin && l.dest && l.date);
 
   const searchOneLeg = useCallback(
-    async (idx: number, leg: Leg, a: number, c: string, reqId: number) => {
+    async (idx: number, leg: Leg, a: number, c: string, reqId: number, signal?: AbortSignal) => {
       try {
-        const data = await searchFlights(leg.origin, leg.dest, leg.date, a, c);
+        const data = await searchFlights(leg.origin, leg.dest, leg.date, a, c, signal);
         if (reqId !== requestIdRef.current) return;
         setLegStates((prev) =>
           prev.map((s, i) =>
@@ -134,6 +136,9 @@ export function useMultiSearch() {
 
   const searchAll = useCallback(async () => {
     if (!allLegsFilled) return;
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     const reqId = ++requestIdRef.current;
     setSearching(true);
     setLegStates(legs.map(() => ({ ...EMPTY_LEG_STATE, status: "loading" as LegStatus })));
@@ -147,7 +152,7 @@ export function useMultiSearch() {
     router.replace(`?${p.toString()}`, { scroll: false });
 
     // 各段並行發出、各自完成即各自顯示（後端 Semaphore 會自然節流 fast-flights）
-    await Promise.all(legs.map((leg, i) => searchOneLeg(i, leg, adults, cabin, reqId)));
+    await Promise.all(legs.map((leg, i) => searchOneLeg(i, leg, adults, cabin, reqId, controller.signal)));
     if (reqId === requestIdRef.current) setSearching(false);
   }, [legs, adults, cabin, allLegsFilled, router, searchOneLeg]);
 
@@ -156,7 +161,7 @@ export function useMultiSearch() {
     setLegStates((prev) =>
       prev.map((s, i) => (i === idx ? { ...EMPTY_LEG_STATE, status: "loading" } : s))
     );
-    searchOneLeg(idx, legs[idx], adults, cabin, reqId);
+    searchOneLeg(idx, legs[idx], adults, cabin, reqId, abortControllerRef.current?.signal);
   };
 
   const selectFlight = (legIdx: number, flightIdx: number) => {
