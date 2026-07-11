@@ -158,9 +158,11 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
     (inbound.result && inbound.result.flights.length > 0 ? 1 : 0);
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-5 mt-6">
-      <RoundTripSegment {...outbound} />
-      <RoundTripSegment {...inbound} />
+    <div className="w-full max-w-3xl lg:max-w-6xl mx-auto space-y-5 mt-6">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <RoundTripSegment {...outbound} />
+        <RoundTripSegment {...inbound} />
+      </div>
 
       <div
         aria-label="來回總價"

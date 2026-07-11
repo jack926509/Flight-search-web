@@ -74,7 +74,7 @@ export default function TrackerDrawer({
             <header className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-gray-900">機票追蹤</h2>
-                <p className="text-xs text-gray-400">站內通知，不會寄 email 或推播</p>
+                <p className="text-xs text-gray-400">站內通知＋降價自動推播 Telegram</p>
               </div>
               <button
                 type="button"

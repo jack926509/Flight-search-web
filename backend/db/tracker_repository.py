@@ -113,3 +113,19 @@ async def mark_events_read(db: AsyncClient, tracker_key_hash: str, tracker_id: s
     if tracker_id:
         query = query.eq("tracker_id", tracker_id)
     await query.execute()
+
+
+async def list_unnotified_events(db: AsyncClient, limit: int = 50) -> list[dict]:
+    resp = (
+        await db.table("tracker_events")
+        .select("*, price_trackers(trip_type,origin,dest,depart_date,return_date)")
+        .eq("notified", False)
+        .order("created_at", desc=False)
+        .limit(limit)
+        .execute()
+    )
+    return resp.data
+
+
+async def mark_event_notified(db: AsyncClient, event_id: str) -> None:
+    await db.table("tracker_events").update({"notified": True}).eq("id", event_id).execute()

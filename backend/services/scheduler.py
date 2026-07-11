@@ -60,6 +60,13 @@ async def _tracker_job(cached_search, db) -> None:
         return
     logger.info("scheduler: tracker_job done (%d trackers checked)", checked)
 
+    try:
+        from services.notifier import notify_pending_events
+        sent = await notify_pending_events()
+        logger.info("scheduler: tracker_job notified (%d events sent)", sent)
+    except Exception as exc:
+        logger.error("scheduler: tracker_job notify failed: %s", exc)
+
 
 def create_scheduler(cached_search, db) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()

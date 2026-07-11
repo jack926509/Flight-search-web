@@ -42,28 +42,63 @@ interface AirlineLabel {
   zh: string;
   en: string;
   code?: string;
-  domain?: string;
 }
 
+// IATA 兩碼 → 中文／英文名稱對照表（純資料，不含 logo 來源；logo 一律用 pics.avs.io 依 IATA 碼取得）
 const AIRLINE_LABELS: Record<string, AirlineLabel> = {
-  BR: { zh: "長榮航空", en: "EVA Air", code: "BR", domain: "evaair.com" },
-  CI: { zh: "中華航空", en: "China Airlines", code: "CI", domain: "china-airlines.com" },
-  HX: { zh: "香港航空", en: "Hong Kong Airlines", code: "HX", domain: "hongkongairlines.com" },
-  TK: { zh: "土耳其航空", en: "Turkish Airlines", code: "TK", domain: "turkishairlines.com" },
-  ZH: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH", domain: "global.shenzhenair.com" },
-  EY: { zh: "阿提哈德航空", en: "Etihad Airways", code: "EY", domain: "etihad.com" },
-  MU: { zh: "中國東方航空", en: "China Eastern Airlines", code: "MU", domain: "ceair.com" },
-  W4: { zh: "威茲馬爾他航空", en: "Wizz Air Malta", code: "W4", domain: "wizzair.com" },
-  FR: { zh: "瑞安航空", en: "Ryanair", code: "FR", domain: "ryanair.com" },
-  CA: { zh: "中國國際航空", en: "Air China", code: "CA", domain: "airchina.com.cn" },
-  TW: { zh: "德威航空", en: "T'way Air", code: "TW", domain: "twayair.com" },
-  OS: { zh: "奧地利航空", en: "Austrian Airlines", code: "OS", domain: "austrian.com" },
-  "EVA AIR": { zh: "長榮航空", en: "EVA Air", code: "BR", domain: "evaair.com" },
-  "CHINA AIRLINES": { zh: "中華航空", en: "China Airlines", code: "CI", domain: "china-airlines.com" },
-  "HONG KONG AIRLINES": { zh: "香港航空", en: "Hong Kong Airlines", code: "HX", domain: "hongkongairlines.com" },
-  "TURKISH AIRLINES": { zh: "土耳其航空", en: "Turkish Airlines", code: "TK", domain: "turkishairlines.com" },
-  "AUSTRIAN AIRLINES": { zh: "奧地利航空", en: "Austrian Airlines", code: "OS", domain: "austrian.com" },
-  SHENZHEN: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH", domain: "global.shenzhenair.com" },
+  BR: { zh: "長榮航空", en: "EVA Air", code: "BR" },
+  CI: { zh: "中華航空", en: "China Airlines", code: "CI" },
+  JX: { zh: "星宇航空", en: "STARLUX Airlines", code: "JX" },
+  AE: { zh: "華信航空", en: "Mandarin Airlines", code: "AE" },
+  B7: { zh: "立榮航空", en: "UNI Air", code: "B7" },
+  IT: { zh: "台灣虎航", en: "Tigerair Taiwan", code: "IT" },
+  JL: { zh: "日本航空", en: "Japan Airlines", code: "JL" },
+  NH: { zh: "全日空", en: "ANA", code: "NH" },
+  MM: { zh: "樂桃航空", en: "Peach Aviation", code: "MM" },
+  GK: { zh: "捷星日本", en: "Jetstar Japan", code: "GK" },
+  CX: { zh: "國泰航空", en: "Cathay Pacific", code: "CX" },
+  UO: { zh: "香港快運", en: "HK Express", code: "UO" },
+  HX: { zh: "香港航空", en: "Hong Kong Airlines", code: "HX" },
+  SQ: { zh: "新加坡航空", en: "Singapore Airlines", code: "SQ" },
+  TR: { zh: "酷航", en: "Scoot", code: "TR" },
+  TG: { zh: "泰國國際航空", en: "Thai Airways", code: "TG" },
+  VZ: { zh: "泰越捷航空", en: "Thai Vietjet Air", code: "VZ" },
+  VN: { zh: "越南航空", en: "Vietnam Airlines", code: "VN" },
+  VJ: { zh: "越捷航空", en: "Vietjet Air", code: "VJ" },
+  KE: { zh: "大韓航空", en: "Korean Air", code: "KE" },
+  OZ: { zh: "韓亞航空", en: "Asiana Airlines", code: "OZ" },
+  "7C": { zh: "濟州航空", en: "Jeju Air", code: "7C" },
+  LJ: { zh: "真航空", en: "Jin Air", code: "LJ" },
+  BX: { zh: "釜山航空", en: "Air Busan", code: "BX" },
+  TW: { zh: "德威航空", en: "T'way Air", code: "TW" },
+  MH: { zh: "馬來西亞航空", en: "Malaysia Airlines", code: "MH" },
+  AK: { zh: "亞洲航空", en: "AirAsia", code: "AK" },
+  D7: { zh: "亞洲航空 X", en: "AirAsia X", code: "D7" },
+  PR: { zh: "菲律賓航空", en: "Philippine Airlines", code: "PR" },
+  "5J": { zh: "宿霧太平洋航空", en: "Cebu Pacific", code: "5J" },
+  CZ: { zh: "中國南方航空", en: "China Southern Airlines", code: "CZ" },
+  MU: { zh: "中國東方航空", en: "China Eastern Airlines", code: "MU" },
+  CA: { zh: "中國國際航空", en: "Air China", code: "CA" },
+  HO: { zh: "吉祥航空", en: "Juneyao Airlines", code: "HO" },
+  QR: { zh: "卡達航空", en: "Qatar Airways", code: "QR" },
+  EK: { zh: "阿聯酋航空", en: "Emirates", code: "EK" },
+  TK: { zh: "土耳其航空", en: "Turkish Airlines", code: "TK" },
+  SL: { zh: "泰國獅子航空", en: "Thai Lion Air", code: "SL" },
+  FD: { zh: "泰國亞洲航空", en: "Thai AirAsia", code: "FD" },
+  UA: { zh: "聯合航空", en: "United Airlines", code: "UA" },
+  DL: { zh: "達美航空", en: "Delta Air Lines", code: "DL" },
+  AA: { zh: "美國航空", en: "American Airlines", code: "AA" },
+  ZH: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH" },
+  EY: { zh: "阿提哈德航空", en: "Etihad Airways", code: "EY" },
+  W4: { zh: "威茲馬爾他航空", en: "Wizz Air Malta", code: "W4" },
+  FR: { zh: "瑞安航空", en: "Ryanair", code: "FR" },
+  OS: { zh: "奧地利航空", en: "Austrian Airlines", code: "OS" },
+  "EVA AIR": { zh: "長榮航空", en: "EVA Air", code: "BR" },
+  "CHINA AIRLINES": { zh: "中華航空", en: "China Airlines", code: "CI" },
+  "HONG KONG AIRLINES": { zh: "香港航空", en: "Hong Kong Airlines", code: "HX" },
+  "TURKISH AIRLINES": { zh: "土耳其航空", en: "Turkish Airlines", code: "TK" },
+  "AUSTRIAN AIRLINES": { zh: "奧地利航空", en: "Austrian Airlines", code: "OS" },
+  SHENZHEN: { zh: "深圳航空", en: "Shenzhen Airlines", code: "ZH" },
 };
 
 function airlineCodeFromFlightNo(flightNo: string): string {
@@ -71,21 +106,23 @@ function airlineCodeFromFlightNo(flightNo: string): string {
   return match?.[1] ?? "";
 }
 
-function airlineLogoUrl(domain?: string): string {
-  return domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64` : "";
+// logo 一律走 pics.avs.io，只需 IATA 兩碼；未知代碼會回通用佔位圖（HTTP 200，非 404），非空字串即可顯示
+function airlineLogoUrl(code: string): string {
+  return code ? `https://pics.avs.io/64/64/${code}.png` : "";
 }
 
 export function formatAirlineLabel(airline: string, flightNo = ""): { name: string; detail: string; code: string; logoUrl: string } {
   const cleanedAirline = airline.trim();
   const code = airlineCodeFromFlightNo(flightNo) || (/^[A-Z0-9]{2}$/.test(cleanedAirline) ? cleanedAirline : "");
   const label = AIRLINE_LABELS[code] || AIRLINE_LABELS[cleanedAirline.toUpperCase()];
+  const logoUrl = airlineLogoUrl(label?.code || code);
 
   if (!label) {
     return {
       name: cleanedAirline || "航空公司未提供",
       detail: flightNo,
       code: code || cleanedAirline.slice(0, 2).toUpperCase(),
-      logoUrl: "",
+      logoUrl,
     };
   }
 
@@ -96,7 +133,7 @@ export function formatAirlineLabel(airline: string, flightNo = ""): { name: stri
     name: label.zh,
     detail: detailParts.join("・"),
     code: label.code || code,
-    logoUrl: airlineLogoUrl(label.domain),
+    logoUrl,
   };
 }
 
