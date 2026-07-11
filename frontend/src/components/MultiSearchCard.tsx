@@ -30,8 +30,8 @@ export default function MultiSearchCard({
   onLegChange, onAddLeg, onRemoveLeg, onAdultsChange, onCabinChange, onSubmit,
 }: Props) {
   return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-card shadow-card border border-white/60 p-6 w-full max-w-3xl mx-auto">
-      <p className="text-xs text-gray-400 mb-4">
+    <div className="bg-white rounded-card shadow-card border border-line-soft p-6 w-full max-w-3xl mx-auto">
+      <p className="text-xs text-muted mb-4">
         外站票／四腿票：每段為獨立單程機票，各段分別查價後加總。
       </p>
 
@@ -39,7 +39,7 @@ export default function MultiSearchCard({
       <div className="space-y-4 mb-4">
         {legs.map((leg, i) => (
           <div key={i} className="flex flex-wrap items-end gap-2">
-            <span className="text-xs font-bold text-gray-400 w-10 shrink-0 mb-3">
+            <span className="text-xs font-bold text-muted w-10 shrink-0 mb-3">
               第 {i + 1} 段
             </span>
             <div className="flex-1 min-w-[120px]">
@@ -61,7 +61,7 @@ export default function MultiSearchCard({
             <div className="min-w-[140px]">
               <label
                 htmlFor={`leg${i}-date`}
-                className="block text-xs font-medium text-gray-500 mb-1"
+                className="block text-xs font-medium text-muted mb-1"
               >
                 日期
               </label>
@@ -71,8 +71,8 @@ export default function MultiSearchCard({
                 value={leg.date}
                 min={today}
                 onChange={(e) => onLegChange(i, { date: e.target.value })}
-                className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                           focus:border-accent focus:ring-1 focus:ring-accent outline-none
+                className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                           focus:border-primary focus:ring-1 focus:ring-primary outline-none
                            min-h-[44px]"
               />
             </div>
@@ -81,7 +81,7 @@ export default function MultiSearchCard({
                 type="button"
                 onClick={() => onRemoveLeg(i)}
                 aria-label={`移除第 ${i + 1} 段`}
-                className="mb-1 p-2 rounded-full border border-gray-300 text-gray-400
+                className="mb-1 p-2 rounded-full border border-line text-muted
                            hover:bg-red-50 hover:text-red-500 hover:border-red-300
                            transition-colors shrink-0 min-h-[44px] min-w-[44px]"
               >
@@ -105,15 +105,15 @@ export default function MultiSearchCard({
       {/* Shared: adults + cabin */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="w-24">
-          <label htmlFor="multi-adults" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="multi-adults" className="block text-xs font-medium text-muted mb-1">
             人數
           </label>
           <select
             id="multi-adults"
             value={adults}
             onChange={(e) => onAdultsChange(Number(e.target.value))}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -122,15 +122,15 @@ export default function MultiSearchCard({
           </select>
         </div>
         <div className="flex-1 min-w-[130px]">
-          <label htmlFor="multi-cabin" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="multi-cabin" className="block text-xs font-medium text-muted mb-1">
             艙等
           </label>
           <select
             id="multi-cabin"
             value={cabin}
             onChange={(e) => onCabinChange(e.target.value)}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {CABINS.map((c) => (
@@ -144,8 +144,8 @@ export default function MultiSearchCard({
         type="button"
         onClick={onSubmit}
         disabled={searching || !allLegsFilled}
-        className="w-full bg-cta-gradient text-white font-semibold py-3 px-6 rounded-xl shadow-card
-                   hover:shadow-cardHover hover:brightness-[1.04] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
+        className="w-full bg-primary text-white font-semibold py-3 px-6 rounded-xl shadow-card
+                   hover:bg-primary-dark hover:shadow-cardHover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
                    transition-all min-h-[48px] flex items-center justify-center gap-2"
       >
         {searching ? (

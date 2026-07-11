@@ -45,13 +45,13 @@ export default function SearchCard({
 
   return (
     <div
-      className="bg-white/95 backdrop-blur-sm rounded-card shadow-card border border-white/60 p-6 w-full max-w-3xl mx-auto"
+      className="bg-white rounded-card shadow-card border border-line-soft p-6 w-full max-w-3xl mx-auto"
       onKeyDown={handleKeyDown}
     >
       <div
         role="tablist"
         aria-label="旅程類型"
-        className="inline-flex rounded-lg border border-gray-300 bg-gray-50 p-1 mb-5"
+        className="inline-flex rounded-lg border border-line bg-field p-1 mb-5"
       >
         {[
           { value: "one-way" as const, label: "單程" },
@@ -66,7 +66,7 @@ export default function SearchCard({
             className={`px-4 py-2 rounded-md text-sm font-semibold min-h-[40px] transition-colors ${
               tripType === item.value
                 ? "bg-white text-primary shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                : "text-muted hover:text-ink"
             }`}
           >
             {item.label}
@@ -86,7 +86,7 @@ export default function SearchCard({
           type="button"
           onClick={onSwap}
           aria-label="對調出發地與目的地"
-          className="mb-1 p-2 rounded-full border border-gray-300 hover:bg-gray-100
+          className="mb-1 p-2 rounded-full border border-line hover:bg-field
                      transition-colors shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
         >
           ⇄
@@ -102,7 +102,7 @@ export default function SearchCard({
       {/* Row 2: dates, adults, cabin */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="flex-1 min-w-[130px]">
-          <label htmlFor="date" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="date" className="block text-xs font-medium text-muted mb-1">
             出發日期
           </label>
           <input
@@ -111,15 +111,15 @@ export default function SearchCard({
             value={date}
             min={today}
             onChange={(e) => onDateChange(e.target.value)}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           />
         </div>
 
         {isRoundTrip && (
           <div className="flex-1 min-w-[130px]">
-            <label htmlFor="returnDate" className="block text-xs font-medium text-gray-500 mb-1">
+            <label htmlFor="returnDate" className="block text-xs font-medium text-muted mb-1">
               回程日期
             </label>
             <input
@@ -129,8 +129,8 @@ export default function SearchCard({
               min={date || today}
               onChange={(e) => onReturnDateChange(e.target.value)}
               aria-invalid={returnDateInvalid}
-              className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                         focus:border-accent focus:ring-1 focus:ring-accent outline-none
+              className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                         focus:border-primary focus:ring-1 focus:ring-primary outline-none
                          min-h-[44px]"
             />
             {returnDateInvalid && (
@@ -140,15 +140,15 @@ export default function SearchCard({
         )}
 
         <div className="w-24">
-          <label htmlFor="adults" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="adults" className="block text-xs font-medium text-muted mb-1">
             人數
           </label>
           <select
             id="adults"
             value={adults}
             onChange={(e) => onAdultsChange(Number(e.target.value))}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -158,15 +158,15 @@ export default function SearchCard({
         </div>
 
         <div className="flex-1 min-w-[130px]">
-          <label htmlFor="cabin" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="cabin" className="block text-xs font-medium text-muted mb-1">
             艙等
           </label>
           <select
             id="cabin"
             value={cabin}
             onChange={(e) => onCabinChange(e.target.value)}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {CABINS.map((c) => (
@@ -181,8 +181,8 @@ export default function SearchCard({
         type="button"
         onClick={onSubmit}
         disabled={loading || !canSubmit}
-        className="w-full bg-cta-gradient text-white font-semibold py-3 px-6 rounded-xl shadow-card
-                   hover:shadow-cardHover hover:brightness-[1.04] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
+        className="w-full bg-primary text-white font-semibold py-3 px-6 rounded-xl shadow-card
+                   hover:bg-primary-dark hover:shadow-cardHover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
                    transition-all min-h-[48px] flex items-center justify-center gap-2"
       >
         {loading ? (

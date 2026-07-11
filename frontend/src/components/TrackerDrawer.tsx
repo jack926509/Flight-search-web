@@ -50,8 +50,8 @@ export default function TrackerDrawer({
           setOpen(true);
           onReload();
         }}
-        className="relative px-3 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700
-                   hover:bg-gray-50 min-h-[40px]"
+        className="relative px-3 py-2 rounded-lg border border-line text-sm font-semibold text-ink
+                   hover:bg-field min-h-[40px]"
         aria-label="開啟追蹤清單"
       >
         追蹤
@@ -68,18 +68,18 @@ export default function TrackerDrawer({
             type="button"
             aria-label="關閉追蹤清單背景"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40"
           />
-          <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white/90 backdrop-blur-md shadow-float flex flex-col">
-            <header className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
+          <aside className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-float flex flex-col">
+            <header className="px-5 py-4 border-b border-line flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-bold text-gray-900">機票追蹤</h2>
-                <p className="text-xs text-gray-400">站內通知＋降價自動推播 LINE</p>
+                <h2 className="text-base font-bold text-ink">機票追蹤</h2>
+                <p className="text-xs text-muted">站內通知＋降價自動推播 LINE</p>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="w-10 h-10 rounded-full border border-gray-200 hover:bg-gray-50"
+                className="w-10 h-10 rounded-full border border-line hover:bg-field"
                 aria-label="關閉追蹤清單"
               >
                 ×
@@ -87,10 +87,10 @@ export default function TrackerDrawer({
             </header>
 
             <div className="p-4 overflow-y-auto space-y-3">
-              {loading && <p className="text-sm text-gray-500">讀取追蹤清單中…</p>}
+              {loading && <p className="text-sm text-muted">讀取追蹤清單中…</p>}
               {error && <p className="text-sm text-red-600">{error}</p>}
               {!loading && trackers.length === 0 && (
-                <div className="py-10 text-center text-sm text-gray-500">
+                <div className="py-10 text-center text-sm text-muted">
                   尚未建立追蹤。查到票價後按「追蹤」即可加入。
                 </div>
               )}
@@ -101,28 +101,28 @@ export default function TrackerDrawer({
                 return (
                   <section
                     key={tracker.id}
-                    className={`rounded-xl border p-4 space-y-3 ${unread ? "border-[#B45309] bg-amber-50" : "border-gray-200 bg-white"}`}
+                    className={`rounded-xl border p-4 space-y-3 ${unread ? "border-[#B45309] bg-amber-50" : "border-line bg-white"}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-bold text-gray-900">{tripLabel(tracker)}</p>
-                        <p className="text-xs text-gray-500">{dateLabel(tracker)}・{tracker.adults} 人・{tracker.cabin}</p>
+                        <p className="text-sm font-bold text-ink">{tripLabel(tracker)}</p>
+                        <p className="text-xs text-muted">{dateLabel(tracker)}・{tracker.adults} 人・{tracker.cabin}</p>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${tracker.enabled ? "bg-green-50 text-[#0A7A3D]" : "bg-gray-100 text-gray-500"}`}>
+                      <span className={`text-xs px-2 py-1 rounded-full ${tracker.enabled ? "bg-green-soft text-green" : "bg-field text-muted"}`}>
                         {tracker.enabled ? "追蹤中" : "已停用"}
                       </span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="rounded-lg bg-gray-50 p-2">
-                        <p className="text-xs text-gray-400">目前最低</p>
-                        <p className="font-bold text-[#0A7A3D]">
+                      <div className="rounded-lg bg-field p-2">
+                        <p className="text-xs text-muted">目前最低</p>
+                        <p className="font-bold text-price">
                           {tracker.current_price_twd ? `NT$ ${tracker.current_price_twd.toLocaleString()}` : "待檢查"}
                         </p>
                       </div>
-                      <div className="rounded-lg bg-gray-50 p-2">
-                        <p className="text-xs text-gray-400">目標價</p>
-                        <p className="font-bold text-gray-800">
+                      <div className="rounded-lg bg-field p-2">
+                        <p className="text-xs text-muted">目標價</p>
+                        <p className="font-bold text-ink">
                           {tracker.target_price_twd ? `NT$ ${tracker.target_price_twd.toLocaleString()}` : "未設定"}
                         </p>
                       </div>
@@ -138,14 +138,14 @@ export default function TrackerDrawer({
                       <button
                         type="button"
                         onClick={() => onToggle(tracker.id, !tracker.enabled)}
-                        className="px-3 py-2 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 min-h-[36px]"
+                        className="px-3 py-2 text-xs rounded-lg border border-line hover:bg-field min-h-[36px]"
                       >
                         {tracker.enabled ? "停用" : "啟用"}
                       </button>
                       <button
                         type="button"
                         onClick={() => onMarkRead(tracker.id)}
-                        className="px-3 py-2 text-xs rounded-lg border border-gray-300 hover:bg-gray-50 min-h-[36px]"
+                        className="px-3 py-2 text-xs rounded-lg border border-line hover:bg-field min-h-[36px]"
                       >
                         標記已讀
                       </button>

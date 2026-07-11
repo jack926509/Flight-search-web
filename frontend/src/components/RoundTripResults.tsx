@@ -57,15 +57,15 @@ function RoundTripSegment({
   return (
     <section
       aria-label={`${label}結果`}
-      className="bg-white rounded-card border border-gray-200 shadow-card overflow-hidden"
+      className="bg-white rounded-card border border-line shadow-card overflow-hidden"
     >
-      <header className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+      <header className="px-5 py-3 bg-field border-b border-line-soft flex items-center justify-between flex-wrap gap-2">
         <div>
-          <p className="text-sm font-semibold text-gray-800">{label}</p>
-          <p className="text-xs text-gray-500">{route}　{date}</p>
+          <p className="text-sm font-semibold text-ink">{label}</p>
+          <p className="text-xs text-muted">{route}　{date}</p>
         </div>
         {result && (status === "success" || status === "stale") && (
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted">
             {sourceLabel(result.source)}・{formatRelativeTime(result.fetched_at)}
             {status === "stale" && <span className="ml-2 text-[#B45309]">過期快取價</span>}
           </span>
@@ -76,20 +76,20 @@ function RoundTripSegment({
         {status === "loading" && (
           <div className="space-y-2" aria-label={`${label}載入中`}>
             {[0, 1].map((key) => (
-              <div key={key} className="h-14 rounded-lg bg-gray-100 animate-pulse" />
+              <div key={key} className="h-14 rounded-lg bg-field animate-pulse" />
             ))}
           </div>
         )}
 
         {status === "error" && (
           <div className="text-center py-4">
-            <p className="text-sm text-gray-600 mb-1">{label}查詢失敗</p>
-            {error && <p className="text-xs text-gray-400">{error}</p>}
+            <p className="text-sm text-muted mb-1">{label}查詢失敗</p>
+            {error && <p className="text-xs text-muted">{error}</p>}
           </div>
         )}
 
         {status === "empty" && (
-          <p className="text-sm text-gray-500 text-center py-4">
+          <p className="text-sm text-muted text-center py-4">
             這天沒有找到{label}航班，請換日期或鄰近機場試試
           </p>
         )}
@@ -117,32 +117,32 @@ function RoundTripSegment({
                                cursor-pointer transition-colors min-h-[56px] flex-wrap
                                ${isSelected
                                  ? "border-primary bg-primary/5 shadow-card"
-                                 : "border-gray-200 hover:border-accent/50 hover:bg-gray-50"}`}
+                                 : "border-line hover:border-primary/40 hover:bg-field"}`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <span
                         aria-hidden
                         className={`inline-block w-4 h-4 rounded-full border-2 shrink-0
-                                   ${isSelected ? "border-primary bg-primary" : "border-gray-300"}`}
+                                   ${isSelected ? "border-primary bg-primary" : "border-line"}`}
                       />
                       <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
                       <div className="min-w-0">
                         <div>
-                          <div className="text-sm font-semibold text-gray-800">
+                          <div className="text-sm font-semibold text-ink">
                             {airline.name}
                           </div>
                           {airline.detail && (
-                            <div className="mt-0.5 text-xs text-gray-400">{airline.detail}</div>
+                            <div className="mt-0.5 text-xs text-muted">{airline.detail}</div>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted">
                           {flight.depart_time} — {formatDuration(flight.duration_min)} — {flight.arrive_time}
                           {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}
                         </div>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-lg font-bold text-[#0A7A3D]">
+                      <span className="text-lg font-bold text-price">
                         NT$ {flight.price.toLocaleString()}
                       </span>
                       {originalIdx === 0 && (
@@ -214,7 +214,7 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
                    flex items-center justify-between flex-wrap gap-3"
       >
         <div>
-          <p className="text-sm font-semibold text-gray-700">
+          <p className="text-sm font-semibold text-ink">
             已選 {pricedCount} / 2 段合計
           </p>
           {pricedCount < 2 && (
@@ -223,7 +223,7 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
             </p>
           )}
         </div>
-        <span className="text-2xl font-bold text-[#0A7A3D]">
+        <span className="text-2xl font-bold text-price">
           NT$ {total.toLocaleString()}
         </span>
       </div>
@@ -245,7 +245,7 @@ export default function RoundTripResults({ outbound, inbound, total, onRetry, on
         </div>
       )}
 
-      <p className="text-xs text-gray-400 leading-relaxed">
+      <p className="text-xs text-muted leading-relaxed">
         來回結果會分別查去程與回程，再加總目前選取的票價；實際是否為同一張來回票、
         退改規則與行李條件，仍以訂票頁顯示為準。
       </p>

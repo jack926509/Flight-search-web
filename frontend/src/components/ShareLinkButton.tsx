@@ -67,13 +67,13 @@ export default function ShareLinkButton({ className = "" }: Props) {
         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
                    border transition-colors min-h-[36px] shrink-0
                    ${copied
-                     ? "bg-[#0A7A3D]/10 border-[#0A7A3D]/30 text-[#0A7A3D]"
-                     : "bg-white text-gray-600 border-gray-300 hover:border-accent/50 hover:bg-gray-50"}`}
+                     ? "bg-green-soft border-green/30 text-green"
+                     : "bg-white text-muted border-line hover:border-primary/40 hover:bg-field"}`}
       >
         {copied ? "✓ 已複製" : "🔗 複製分享連結"}
       </button>
       {manualUrl && (
-        <p className="text-xs text-gray-400 break-all max-w-xs">
+        <p className="text-xs text-muted break-all max-w-xs">
           複製失敗，請手動複製網址：{manualUrl}
         </p>
       )}

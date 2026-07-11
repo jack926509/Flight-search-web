@@ -72,7 +72,7 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
 
   return (
     <div ref={wrapRef} className="relative flex-1 min-w-0">
-      <label htmlFor={id} className="block text-xs font-medium text-gray-500 mb-1">
+      <label htmlFor={id} className="block text-xs font-medium text-muted mb-1">
         {label}
       </label>
       <input
@@ -87,15 +87,15 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
         onChange={(e) => search(e.target.value)}
         onFocus={() => query && search(query)}
         placeholder="機場代碼或城市"
-        className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                   focus:border-accent focus:ring-1 focus:ring-accent outline-none
+        className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                   focus:border-primary focus:ring-1 focus:ring-primary outline-none
                    min-h-[44px]"
       />
       {open && results.length > 0 && (
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg
+          className="absolute z-50 w-full mt-1 bg-white border border-line rounded-lg
                      shadow-lg max-h-60 overflow-y-auto"
         >
           {results.map((apt) => (
@@ -104,15 +104,15 @@ export default function AirportInput({ label, value, onChange, id }: Props) {
               role="option"
               aria-selected={apt.iata === value}
               onClick={() => select(apt)}
-              className="px-4 py-3 cursor-pointer hover:bg-blue-50 flex items-center gap-3
+              className="px-4 py-3 cursor-pointer hover:bg-accent-soft flex items-center gap-3
                          min-h-[44px]"
             >
               <span className="font-bold text-primary w-10 shrink-0">{apt.iata}</span>
-              <span className="text-sm text-gray-700 truncate">
+              <span className="text-sm text-ink truncate">
                 {apt.zh ? `${apt.zh.split(" ")[0]}（${apt.city}）` : apt.city}
                 {apt.name !== apt.city ? ` — ${apt.name}` : ""}
               </span>
-              <span className="text-xs text-gray-400 ml-auto shrink-0">{apt.country}</span>
+              <span className="text-xs text-muted ml-auto shrink-0">{apt.country}</span>
             </li>
           ))}
         </ul>

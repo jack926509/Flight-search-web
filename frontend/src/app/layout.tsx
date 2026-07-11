@@ -33,7 +33,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
-      <body className="min-h-screen bg-hero-gradient bg-fixed">
+      <body className="min-h-screen bg-surface-bg">
         {children}
         <RegisterSW />
       </body>

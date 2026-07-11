@@ -65,14 +65,14 @@ export default function MultiLegResults({
           <section
             key={i}
             aria-label={`第 ${i + 1} 段結果`}
-            className="bg-white rounded-card border border-gray-200 shadow-card overflow-hidden"
+            className="bg-white rounded-card border border-line shadow-card overflow-hidden"
           >
-            <header className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
-              <span className="text-sm font-semibold text-gray-700">
+            <header className="px-5 py-3 bg-field border-b border-line-soft flex items-center justify-between flex-wrap gap-2">
+              <span className="text-sm font-semibold text-ink">
                 第 {i + 1} 段　{leg.origin} → {leg.dest}　{leg.date}
               </span>
               {s.result && (s.status === "success" || s.status === "stale") && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted">
                   {s.result.source === "cache" ? "快取" : s.result.source === "fast_flights" ? "Google Flights" : "Kiwi.com"}
                   ・{formatRelativeTime(s.result.fetched_at)}
                   {s.status === "stale" && (
@@ -86,15 +86,15 @@ export default function MultiLegResults({
               {s.status === "loading" && (
                 <div className="space-y-2" aria-label="載入中">
                   {[0, 1].map((k) => (
-                    <div key={k} className="h-12 rounded-lg bg-gray-100 animate-pulse" />
+                    <div key={k} className="h-12 rounded-lg bg-field animate-pulse" />
                   ))}
                 </div>
               )}
 
               {s.status === "error" && (
                 <div className="text-center py-4">
-                  <p className="text-sm text-gray-600 mb-1">此段查詢失敗</p>
-                  {s.error && <p className="text-xs text-gray-400 mb-3">{s.error}</p>}
+                  <p className="text-sm text-muted mb-1">此段查詢失敗</p>
+                  {s.error && <p className="text-xs text-muted mb-3">{s.error}</p>}
                   <button
                     type="button"
                     onClick={() => onRetryLeg(i)}
@@ -107,7 +107,7 @@ export default function MultiLegResults({
               )}
 
               {s.status === "empty" && (
-                <p className="text-sm text-gray-500 text-center py-4">
+                <p className="text-sm text-muted text-center py-4">
                   🔍 這天沒有找到航班——換個日期或鄰近機場試試
                 </p>
               )}
@@ -135,25 +135,25 @@ export default function MultiLegResults({
                                      cursor-pointer transition-colors min-h-[56px] flex-wrap
                                      ${isSelected
                                        ? "border-primary bg-primary/5 shadow-card"
-                                       : "border-gray-200 hover:border-accent/50 hover:bg-gray-50"}`}
+                                       : "border-line hover:border-primary/40 hover:bg-field"}`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <span
                               aria-hidden
                               className={`inline-block w-4 h-4 rounded-full border-2 shrink-0
-                                         ${isSelected ? "border-primary bg-primary" : "border-gray-300"}`}
+                                         ${isSelected ? "border-primary bg-primary" : "border-line"}`}
                             />
                             <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
                             <div className="min-w-0">
                               <div>
-                                <div className="text-sm font-semibold text-gray-800">
+                                <div className="text-sm font-semibold text-ink">
                                   {airline.name}
                                 </div>
                                 {airline.detail && (
-                                  <div className="mt-0.5 text-xs text-gray-400">{airline.detail}</div>
+                                  <div className="mt-0.5 text-xs text-muted">{airline.detail}</div>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-muted">
                                 {f.depart_time} — {formatDuration(f.duration_min)} —{" "}
                                 {f.arrive_time}
                                 {f.stops === 0 ? "・直飛" : `・${f.stops} 轉`}
@@ -161,7 +161,7 @@ export default function MultiLegResults({
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="text-lg font-bold text-[#0A7A3D]">
+                            <span className="text-lg font-bold text-price">
                               NT$ {f.price.toLocaleString()}
                             </span>
                             {originalIdx === 0 && (
@@ -197,7 +197,7 @@ export default function MultiLegResults({
                    flex items-center justify-between flex-wrap gap-3"
       >
         <div>
-          <p className="text-sm font-semibold text-gray-700">
+          <p className="text-sm font-semibold text-ink">
             已選 {legs.length - unpricedCount} / {legs.length} 段合計
           </p>
           {unpricedCount > 0 && (
@@ -206,12 +206,12 @@ export default function MultiLegResults({
             </p>
           )}
         </div>
-        <span className="text-2xl font-bold text-[#0A7A3D]">
+        <span className="text-2xl font-bold text-price">
           NT$ {total.toLocaleString()}
         </span>
       </div>
 
-      <p className="text-xs text-gray-400 leading-relaxed">
+      <p className="text-xs text-muted leading-relaxed">
         ⚠ 分段購票提醒：各段為<strong>互不相關的獨立機票</strong>——行李需逐段重掛、
         前段延誤導致後段誤機時航空公司不負責改補；請預留充足轉機時間（建議 4
         小時以上或隔夜）、確認中停地的簽證／過境規定，並注意外站出發票須從第一段

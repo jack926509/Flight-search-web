@@ -10,7 +10,7 @@ const MESSAGES = [
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+    <div className="bg-white rounded-xl border border-line px-5 py-4">
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-2 flex-1">
           <div className="skeleton h-4 w-32" />
@@ -38,7 +38,7 @@ export default function LoadingSkeleton() {
 
   return (
     <div className="space-y-4">
-      <p className="text-center text-sm text-gray-500 py-2 transition-opacity">
+      <p className="text-center text-sm text-muted py-2 transition-opacity">
         {MESSAGES[msgIdx]}
       </p>
       <SkeletonCard />

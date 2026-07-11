@@ -38,7 +38,7 @@ function Chip({
       className={`px-3 py-1.5 rounded-full text-xs font-medium shrink-0 min-h-[36px] border transition-colors
         ${selected
           ? "bg-primary text-white border-primary"
-          : "bg-white text-gray-600 border-gray-300 hover:border-accent/50 hover:bg-gray-50"}`}
+          : "bg-white text-muted border-line hover:border-primary/40 hover:bg-field"}`}
     >
       {children}
     </button>
@@ -100,7 +100,7 @@ export default function FlightFilterBar({
         <button
           type="button"
           onClick={clearAll}
-          className="text-xs text-gray-400 hover:text-gray-600 underline shrink-0 min-h-[36px] px-1"
+          className="text-xs text-muted hover:text-muted underline shrink-0 min-h-[36px] px-1"
         >
           清除篩選
         </button>

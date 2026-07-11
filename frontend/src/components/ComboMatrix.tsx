@@ -28,15 +28,15 @@ function CheapestDetail({ label, date, flight }: { label: string; date: string; 
   const airline = formatAirlineLabel(flight.airline, flight.flight_no);
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-gray-50 flex-wrap">
+    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-field flex-wrap">
       <div className="flex items-center gap-3 min-w-0">
         <AirlineIcon code={airline.code} logoUrl={airline.logoUrl} name={airline.name} size="sm" />
         <div className="min-w-0">
-          <p className="text-xs text-gray-400">{label}・{date}</p>
-          <p className="text-sm font-semibold text-gray-800">
+          <p className="text-xs text-muted">{label}・{date}</p>
+          <p className="text-sm font-semibold text-ink">
             {airline.name}
-            {airline.detail && <span className="ml-1 text-xs text-gray-400">{airline.detail}</span>}
-            <span className="ml-2 font-normal text-gray-500">
+            {airline.detail && <span className="ml-1 text-xs text-muted">{airline.detail}</span>}
+            <span className="ml-2 font-normal text-muted">
               {flight.depart_time} — {formatDuration(flight.duration_min)} — {flight.arrive_time}
               {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}
             </span>
@@ -44,7 +44,7 @@ function CheapestDetail({ label, date, flight }: { label: string; date: string; 
         </div>
       </div>
       <div className="text-right shrink-0">
-        <span className="text-lg font-bold text-[#0A7A3D]">
+        <span className="text-lg font-bold text-price">
           NT$ {flight.price.toLocaleString()}
         </span>
         <a
@@ -103,7 +103,7 @@ export default function ComboMatrix({
       {running && (
         <div
           role="status"
-          className="flex items-center gap-3 px-4 py-3 rounded-card bg-blue-50 border border-blue-100 text-sm text-primary"
+          className="flex items-center gap-3 px-4 py-3 rounded-card bg-accent-soft border border-line text-sm text-primary"
         >
           <span className="animate-spin inline-block w-4 h-4 border-2 border-primary
                            border-t-transparent rounded-full shrink-0" />
@@ -112,10 +112,10 @@ export default function ComboMatrix({
       )}
 
       {/* Matrix */}
-      <div className="bg-white rounded-card border border-gray-200 shadow-card p-4">
-        <p className="text-sm font-semibold text-gray-700 mb-1">
+      <div className="bg-white rounded-card border border-line shadow-card p-4">
+        <p className="text-sm font-semibold text-ink mb-1">
           組合總價矩陣
-          <span className="ml-2 text-xs font-normal text-gray-400">
+          <span className="ml-2 text-xs font-normal text-muted">
             列＝段1（{legA.origin}→{legA.dest}）・欄＝段2（{legB.origin}→{legB.dest}）・以各段當日最低價加總
           </span>
         </p>
@@ -123,11 +123,11 @@ export default function ComboMatrix({
           <table aria-label="組合價格矩陣" className="w-full text-sm border-collapse min-w-[420px]">
             <thead>
               <tr>
-                <th className="p-2 text-xs text-gray-400 font-normal text-left whitespace-nowrap">
+                <th className="p-2 text-xs text-muted font-normal text-left whitespace-nowrap">
                   段1 ↓ ／ 段2 →
                 </th>
                 {datesB.map((db) => (
-                  <th key={db} className="p-2 text-xs text-gray-500 font-semibold whitespace-nowrap">
+                  <th key={db} className="p-2 text-xs text-muted font-semibold whitespace-nowrap">
                     {mmdd(db)}
                   </th>
                 ))}
@@ -136,7 +136,7 @@ export default function ComboMatrix({
             <tbody>
               {datesA.map((da) => (
                 <tr key={da}>
-                  <th className="p-2 text-xs text-gray-500 font-semibold text-left whitespace-nowrap">
+                  <th className="p-2 text-xs text-muted font-semibold text-left whitespace-nowrap">
                     {mmdd(da)}
                   </th>
                   {datesB.map((db) => {
@@ -175,9 +175,9 @@ export default function ComboMatrix({
                                 : `${mmdd(da)} 去 ${mmdd(db)} 回：查詢中`
                           }
                           className={`w-full px-2 py-2 rounded-lg text-sm min-h-[40px] transition-colors
-                            ${invalid ? "text-gray-300 cursor-not-allowed" : ""}
-                            ${!invalid && total === null ? "text-gray-400" : ""}
-                            ${total !== null && !isBest && !isPicked ? "hover:bg-blue-50 text-gray-700 cursor-pointer" : ""}
+                            ${invalid ? "text-muted cursor-not-allowed" : ""}
+                            ${!invalid && total === null ? "text-muted" : ""}
+                            ${total !== null && !isBest && !isPicked ? "hover:bg-accent-soft text-ink cursor-pointer" : ""}
                             ${isBest && !isPicked ? "bg-price/15 text-price ring-1 ring-price/30 font-bold" : ""}
                             ${isPicked ? "bg-primary text-white font-bold" : ""}`}
                         >
@@ -194,7 +194,7 @@ export default function ComboMatrix({
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="text-xs text-muted mt-2">
           「—」＝段2日期早於段1，不可行；「無班」＝該日查無航班；「✕」＝該日查詢失敗（重新比價即重試）。
           點任一格查看兩段航班明細。
         </p>
@@ -207,10 +207,10 @@ export default function ComboMatrix({
           className="bg-white rounded-card border-2 border-price shadow-card px-5 py-4
                      flex items-center justify-between flex-wrap gap-3"
         >
-          <p className="text-sm font-semibold text-gray-700">
+          <p className="text-sm font-semibold text-ink">
             🏆 最低組合：{mmdd(best.a)} 去＋{mmdd(best.b)} 回
           </p>
-          <span className="text-2xl font-bold text-[#0A7A3D]">
+          <span className="text-2xl font-bold text-price">
             NT$ {best.total.toLocaleString()}
           </span>
         </div>
@@ -220,11 +220,11 @@ export default function ComboMatrix({
       {picked && pickedA && pickedB && (
         <div
           aria-label="組合明細"
-          className="bg-white rounded-card border border-gray-200 shadow-card p-4 space-y-2"
+          className="bg-white rounded-card border border-line shadow-card p-4 space-y-2"
         >
-          <p className="text-sm font-semibold text-gray-700">
+          <p className="text-sm font-semibold text-ink">
             組合明細：{mmdd(picked.a)} 去＋{mmdd(picked.b)} 回＝
-            <span className="text-[#0A7A3D] font-bold">
+            <span className="text-price font-bold">
               　NT$ {(pickedA.price + pickedB.price).toLocaleString()}
             </span>
           </p>
@@ -238,13 +238,13 @@ export default function ComboMatrix({
             date={picked.b}
             flight={pickedB}
           />
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted">
             以各段當日最低價計；欲改選其他航班，可切到「多段行程」模式帶入這兩個日期細選。
           </p>
         </div>
       )}
 
-      <p className="text-xs text-gray-400 leading-relaxed">
+      <p className="text-xs text-muted leading-relaxed">
         ⚠ 外站票提醒：兩段為獨立機票，行李需重掛、前段延誤後段不負責改補；
         外站出發的來回票須從第一段開始按順序使用，跳段（no-show）會使後續航段被取消。
         比價結果為查詢當下快照，訂票前請以訂票頁實際價格為準。

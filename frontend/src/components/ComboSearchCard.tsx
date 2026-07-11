@@ -37,9 +37,9 @@ function LegRow({
 }) {
   return (
     <div>
-      <p className="text-xs font-bold text-gray-500 mb-2">
+      <p className="text-xs font-bold text-muted mb-2">
         {title}
-        <span className="ml-2 font-normal text-gray-400">{hint}</span>
+        <span className="ml-2 font-normal text-muted">{hint}</span>
       </p>
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[120px]">
@@ -61,7 +61,7 @@ function LegRow({
         <div className="min-w-[140px]">
           <label
             htmlFor={`${idPrefix}-date`}
-            className="block text-xs font-medium text-gray-500 mb-1"
+            className="block text-xs font-medium text-muted mb-1"
           >
             基準日期
           </label>
@@ -71,15 +71,15 @@ function LegRow({
             value={leg.date}
             min={today}
             onChange={(e) => onChange({ ...leg, date: e.target.value })}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           />
         </div>
         <div className="w-28">
           <label
             htmlFor={`${idPrefix}-flex`}
-            className="block text-xs font-medium text-gray-500 mb-1"
+            className="block text-xs font-medium text-muted mb-1"
           >
             彈性天數
           </label>
@@ -87,8 +87,8 @@ function LegRow({
             id={`${idPrefix}-flex`}
             value={leg.flex}
             onChange={(e) => onChange({ ...leg, flex: Number(e.target.value) })}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {Array.from({ length: MAX_FLEX + 1 }, (_, n) => (
@@ -111,8 +111,8 @@ export default function ComboSearchCard({
     (filled ? datesFor(legA, today).length + datesFor(legB, today).length : 0);
 
   return (
-    <div className="bg-white/95 backdrop-blur-sm rounded-card shadow-card border border-white/60 p-6 w-full max-w-3xl mx-auto">
-      <p className="text-xs text-gray-400 mb-4">
+    <div className="bg-white rounded-card shadow-card border border-line-soft p-6 w-full max-w-3xl mx-auto">
+      <p className="text-xs text-muted mb-4">
         外站組合比價：兩段各設基準日期＋彈性範圍，比出「哪天去＋哪天回」總價最低。
         每個日期查一次（共 {totalQueries || "—"} 次），未快取時約需 1–3 分鐘，結果逐格填入。
       </p>
@@ -138,15 +138,15 @@ export default function ComboSearchCard({
 
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="w-24">
-          <label htmlFor="combo-adults" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="combo-adults" className="block text-xs font-medium text-muted mb-1">
             人數
           </label>
           <select
             id="combo-adults"
             value={adults}
             onChange={(e) => onAdultsChange(Number(e.target.value))}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -155,15 +155,15 @@ export default function ComboSearchCard({
           </select>
         </div>
         <div className="flex-1 min-w-[130px]">
-          <label htmlFor="combo-cabin" className="block text-xs font-medium text-gray-500 mb-1">
+          <label htmlFor="combo-cabin" className="block text-xs font-medium text-muted mb-1">
             艙等
           </label>
           <select
             id="combo-cabin"
             value={cabin}
             onChange={(e) => onCabinChange(e.target.value)}
-            className="w-full px-3 py-3 border border-gray-300 rounded-lg text-sm bg-white
-                       focus:border-accent focus:ring-1 focus:ring-accent outline-none
+            className="w-full px-3 py-3 border border-line rounded-lg text-sm bg-white
+                       focus:border-primary focus:ring-1 focus:ring-primary outline-none
                        min-h-[44px]"
           >
             {CABINS.map((c) => (
@@ -177,8 +177,8 @@ export default function ComboSearchCard({
         type="button"
         onClick={onSubmit}
         disabled={running || !filled}
-        className="w-full bg-cta-gradient text-white font-semibold py-3 px-6 rounded-xl shadow-card
-                   hover:shadow-cardHover hover:brightness-[1.04] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
+        className="w-full bg-primary text-white font-semibold py-3 px-6 rounded-xl shadow-card
+                   hover:bg-primary-dark hover:shadow-cardHover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
                    transition-all min-h-[48px] flex items-center justify-center gap-2"
       >
         {running ? (

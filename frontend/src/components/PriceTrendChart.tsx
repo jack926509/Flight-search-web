@@ -49,7 +49,7 @@ const Line = dynamic(
                   type="monotone"
                   data={kiwiData}
                   dataKey="lowest_price_twd"
-                  stroke="#0A7A3D"
+                  stroke="#55702F"
                   dot={false}
                   name="Kiwi.com"
                   strokeWidth={2}
@@ -83,13 +83,13 @@ export default function PriceTrendSection({ route }: Props) {
   }, [open, route, data.length]);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-line overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className="w-full flex items-center justify-between px-5 py-4 text-sm font-medium
-                   text-gray-700 hover:bg-gray-50 transition-colors min-h-[44px]"
+                   text-ink hover:bg-field transition-colors min-h-[44px]"
       >
         <span>▶ 價格趨勢（近 90 天）</span>
         <span
@@ -103,14 +103,14 @@ export default function PriceTrendSection({ route }: Props) {
       {open && (
         <div className="px-5 pb-5">
           {loading && (
-            <div className="h-[200px] flex items-center justify-center text-sm text-gray-400">
+            <div className="h-[200px] flex items-center justify-center text-sm text-muted">
               載入中…
             </div>
           )}
           {!loading && data.length < 3 && (
             <div
               aria-label="價格趨勢資料累積中，目前不足 3 個資料點"
-              className="h-[200px] flex items-center justify-center text-sm text-gray-400"
+              className="h-[200px] flex items-center justify-center text-sm text-muted"
             >
               📊 價格趨勢累積中（目前 {data.length} 筆）
             </div>

@@ -6,18 +6,26 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // 暖砂配色：陶土主色（按鈕底／選中態）
         primary: {
-          DEFAULT: "#0B5FFF",
-          dark: "#0A4BD6",
+          DEFAULT: "#B0522E",
+          dark: "#99461F",
         },
-        // 青綠強調色：用於 focus ring、hover 點綴、漸層尾端
+        // 暖砂中性：取代原本青綠強調色，用於次要邊框點綴
         accent: {
-          DEFAULT: "#0EA5A5",
-          dark: "#0F766E",
+          DEFAULT: "#EBE4DD",
+          dark: "#D8CFC5",
         },
-        price: "#0A7A3D",
+        price: "#9A4620",
         warning: { DEFAULT: "#B45309", bg: "#FEF3C7" },
-        surface: { DEFAULT: "#FFFFFF", bg: "#F5F7FA" },
+        surface: { DEFAULT: "#FFFFFF", bg: "#FDFBF9" },
+        // 暖砂語意色：文字、邊框、輸入框底
+        ink: "#2B2420",
+        muted: "#6B5E54",
+        line: { DEFAULT: "#EBE4DD", soft: "#F1ECE6" },
+        field: "#FAF6F1",
+        "accent-soft": "#F7ECE4",
+        green: { DEFAULT: "#55702F", soft: "#EEF2E2" },
       },
       fontFamily: {
         sans: [
@@ -32,18 +40,10 @@ const config: Config = {
         card: "1rem",
       },
       boxShadow: {
-        card: "0 1px 3px rgba(15,23,42,0.06), 0 10px 30px -14px rgba(11,95,255,0.14)",
-        cardHover:
-          "0 6px 16px rgba(15,23,42,0.08), 0 20px 44px -16px rgba(14,165,165,0.28)",
+        card: "0 1px 2px rgba(0,0,0,.04), 0 4px 14px rgba(0,0,0,.05)",
+        cardHover: "0 1px 2px rgba(0,0,0,.05), 0 8px 22px rgba(0,0,0,.08)",
         float:
-          "0 10px 40px -6px rgba(15,23,42,0.20), 0 4px 12px rgba(15,23,42,0.08)",
-      },
-      backgroundImage: {
-        // 極淡的頁面底：藍白 → 青綠白，維持正文高對比
-        "hero-gradient":
-          "linear-gradient(160deg, #F2F7FF 0%, #F5F9FB 45%, #EEFBF8 100%)",
-        // 藍 → 深青綠，白字對比 ≥ 5:1
-        "cta-gradient": "linear-gradient(135deg, #0B5FFF 0%, #0F766E 100%)",
+          "0 10px 40px -6px rgba(0,0,0,.16), 0 4px 12px rgba(0,0,0,.06)",
       },
       animation: {
         pulse: "pulse 1.8s cubic-bezier(0.4,0,0.6,1) infinite",

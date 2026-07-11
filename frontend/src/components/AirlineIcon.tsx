@@ -13,7 +13,7 @@ const AIRLINE_STYLES: Record<string, { bg: string; fg: string; ring: string }> =
   W4: { bg: "#BE185D", fg: "#FFFFFF", ring: "#FBCFE8" },
   FR: { bg: "#1E3A8A", fg: "#FACC15", ring: "#BFDBFE" },
   CA: { bg: "#B91C1C", fg: "#FFFFFF", ring: "#FCA5A5" },
-  TW: { bg: "#0F766E", fg: "#FFFFFF", ring: "#99F6E4" },
+  TW: { bg: "#3F6F6B", fg: "#FFFFFF", ring: "#B7D4CF" },
 };
 
 interface Props {

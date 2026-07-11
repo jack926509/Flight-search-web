@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #0b5fff;
-  --color-price: #0a7a3d;
+  --color-primary: #b0522e;
+  --color-price: #9a4620;
   --color-warning: #b45309;
   --color-warning-bg: #fef3c7;
   --color-error: #dc2626;
   --color-surface: #ffffff;
-  --color-bg: #f5f7fa;
+  --color-bg: #fdfbf9;
 }
 
 * {
@@ -19,9 +19,9 @@
 html {
   font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
-  /* 與 hero-gradient 起點同色，避免捲動溢出時露出灰底 */
-  background: #f2f7ff;
-  color: #1a1a2e;
+  /* 暖砂方案頁面底色，全站固定白色系 */
+  background: #fdfbf9;
+  color: #2b2420;
 }
 
 /* Focus ring for accessibility */

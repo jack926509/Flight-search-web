@@ -82,9 +82,9 @@ export default function ResultsSection({
           className="flex flex-col items-center gap-4 py-12 text-center"
         >
           <span className="text-4xl">✈️</span>
-          <p className="text-gray-600">查詢失敗，請稍後再試</p>
+          <p className="text-muted">查詢失敗，請稍後再試</p>
           {error && (
-            <p className="text-xs text-gray-400 max-w-xs">{error}</p>
+            <p className="text-xs text-muted max-w-xs">{error}</p>
           )}
           <button
             type="button"
@@ -101,12 +101,12 @@ export default function ResultsSection({
       {status === "empty" && (
         <div className="flex flex-col items-center gap-4 py-12 text-center">
           <span className="text-4xl">🔍</span>
-          <p className="text-gray-600">這天沒有找到航班</p>
+          <p className="text-muted">這天沒有找到航班</p>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={() => onGoDate(-1)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50
+              className="px-4 py-2 border border-line rounded-lg text-sm hover:bg-field
                          transition-colors min-h-[44px]"
             >
               ← 查前一天
@@ -114,7 +114,7 @@ export default function ResultsSection({
             <button
               type="button"
               onClick={() => onGoDate(1)}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50
+              className="px-4 py-2 border border-line rounded-lg text-sm hover:bg-field
                          transition-colors min-h-[44px]"
             >
               查後一天 →
@@ -142,8 +142,8 @@ export default function ResultsSection({
                 className={`px-4 py-2 rounded-full text-sm font-medium shrink-0 min-h-[44px]
                   transition-all ${
                     sortBy === tab.key
-                      ? "bg-cta-gradient text-white shadow-card"
-                      : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
+                      ? "bg-primary text-white shadow-card"
+                      : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
                   }`}
               >
                 {tab.label}
@@ -153,7 +153,7 @@ export default function ResultsSection({
 
           {/* Source info + share */}
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               資料來源：{result.source === "cache" ? "快取" : result.source === "fast_flights" ? "Google Flights" : "Kiwi.com"}
               ・{formatRelativeTime(result.fetched_at)}
             </p>

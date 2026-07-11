@@ -55,11 +55,9 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      {/* 毛玻璃底層放獨立元素：backdrop-filter 若放在 header 本身，會使內部 fixed 定位的浮層（追蹤面板）以 header 為基準而破版 */}
-      <header className="sticky top-0 z-40 h-14 border-b border-white/50 shadow-sm flex items-center px-6 justify-between">
-        <div aria-hidden className="absolute inset-0 -z-10 bg-white/75 backdrop-blur-md" />
-        <h1 className="text-lg font-extrabold bg-cta-gradient bg-clip-text text-transparent">✈ FlightSearch</h1>
+      {/* Header：純白底＋細底線，不用毛玻璃 */}
+      <header className="sticky top-0 z-40 h-14 bg-white border-b border-line flex items-center px-6 justify-between">
+        <h1 className="text-lg font-extrabold text-primary">✈ FlightSearch</h1>
         <div className="flex items-center gap-3">
           <TrackerDrawer
             trackers={trackers.trackers}
@@ -73,7 +71,7 @@ export default function SearchPage() {
             onDelete={(id) => void trackers.removeTracker(id)}
           />
           <div
-            className="flex items-center gap-1.5 text-xs text-gray-400"
+            className="flex items-center gap-1.5 text-xs text-muted"
             aria-label="系統狀態"
             title={light.hint}
           >
@@ -98,8 +96,8 @@ export default function SearchPage() {
             onClick={() => setMode("single")}
             className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
               mode === "single"
-                ? "bg-cta-gradient text-white shadow-card"
-                : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
+                ? "bg-primary text-white shadow-card"
+                : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
             }`}
           >
             單程 / 來回
@@ -111,8 +109,8 @@ export default function SearchPage() {
             onClick={() => setMode("multi")}
             className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
               mode === "multi"
-                ? "bg-cta-gradient text-white shadow-card"
-                : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
+                ? "bg-primary text-white shadow-card"
+                : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
             }`}
           >
             多段行程（外站・四腿）
@@ -124,8 +122,8 @@ export default function SearchPage() {
             onClick={() => setMode("combo")}
             className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
               mode === "combo"
-                ? "bg-cta-gradient text-white shadow-card"
-                : "bg-white/70 backdrop-blur border border-gray-200 text-gray-600 hover:bg-white hover:border-accent/40"
+                ? "bg-primary text-white shadow-card"
+                : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
             }`}
           >
             外站組合比價
@@ -272,7 +270,7 @@ export default function SearchPage() {
         )}
       </main>
 
-      <footer className="py-4 text-center text-xs text-gray-300">
+      <footer className="py-4 text-center text-xs text-muted">
         資料來自 Google Flights 及 Kiwi.com，僅供參考，實際票價以訂票頁為準
       </footer>
     </div>
