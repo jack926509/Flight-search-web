@@ -9,6 +9,28 @@ logger = logging.getLogger(__name__)
 
 _UTC = timezone.utc
 
+_warned_schema_v7_missing = False
+
+
+def _warn_schema_v7_missing_once(exc: Exception) -> None:
+    global _warned_schema_v7_missing
+    if not _warned_schema_v7_missing:
+        logger.warning(
+            "repository: increment_monthly_calls_atomic RPC 不存在（schema_v7 尚未套用到 "
+            "Supabase），fallback 回舊版 read-then-write（併發下配額計數有輕微競態，"
+            "見穩定性審查 L2，屬低優先軟上限誤差）: %s",
+            exc,
+        )
+        _warned_schema_v7_missing = True
+
+
+def _is_unique_violation(exc: Exception) -> bool:
+    """判斷例外是否為 Postgres unique_violation（23505），不強依賴 postgrest 例外型別。"""
+    code = getattr(exc, "code", None)
+    if code == "23505":
+        return True
+    return "23505" in str(exc) or "duplicate key value violates unique constraint" in str(exc)
+
 
 def _now_utc() -> str:
     return datetime.now(_UTC).isoformat()
@@ -85,7 +107,13 @@ async def upsert_price_history(
     price: int,
     source: str,
 ) -> None:
-    """Write lowest daily price; update only if new price is lower (G1 baseline rule applied by caller)."""
+    """Write lowest daily price; update only if new price is lower (G1 baseline rule applied by caller).
+
+    L2：price_history 建表時已有 `unique (route, date)`（schema.sql），schema_v7.sql 再補一個
+    具名唯一索引確保約束存在。併發下兩個協程都讀到「無此列」而各自 insert 時，其中一個會撞
+    唯一約束——這裡補 conflict 處理：撞到就回頭走 update-if-lower，語意與非併發路徑一致。
+    寫法在約束存在與否都能跑（沒有約束就不會撞，insert 分支正常結束）。
+    """
     resp = (
         await db.table("price_history")
         .select("id,lowest_price_twd")
@@ -99,10 +127,31 @@ async def upsert_price_history(
             await db.table("price_history").update(
                 {"lowest_price_twd": price, "source": source}
             ).eq("id", resp.data[0]["id"]).execute()
-    else:
+        return
+
+    try:
         await db.table("price_history").insert(
             {"route": route, "date": date, "lowest_price_twd": price, "source": source}
         ).execute()
+    except Exception as exc:
+        if not _is_unique_violation(exc):
+            raise
+        logger.info(
+            "price_history: concurrent insert race on route=%s date=%s, falling back to update-if-lower",
+            route, date,
+        )
+        resp2 = (
+            await db.table("price_history")
+            .select("id,lowest_price_twd")
+            .eq("route", route)
+            .eq("date", date)
+            .limit(1)
+            .execute()
+        )
+        if resp2.data and price < resp2.data[0]["lowest_price_twd"]:
+            await db.table("price_history").update(
+                {"lowest_price_twd": price, "source": source}
+            ).eq("id", resp2.data[0]["id"]).execute()
 
 
 async def get_price_history(
@@ -153,7 +202,21 @@ async def get_monthly_calls(db: AsyncClient, provider: str, month_key: str) -> i
 
 
 async def increment_monthly_calls(db: AsyncClient, provider: str, month_key: str) -> int:
-    """Increment monthly_calls and return new count; resets if month changed."""
+    """Increment monthly_calls and return new count; resets if month changed.
+
+    L2：優先呼叫 `increment_monthly_calls_atomic` RPC（schema_v7.sql，DB 端原子操作，
+    無競態）。RPC 不存在時（PostgREST 404 / 函式未建，代表 schema_v7 尚未套用到
+    Supabase）fallback 回舊版 read-then-write，並只記一次提示 log。
+    """
+    try:
+        resp = await db.rpc(
+            "increment_monthly_calls_atomic",
+            {"p_provider": provider, "p_month_key": month_key},
+        ).execute()
+        return resp.data
+    except Exception as exc:
+        _warn_schema_v7_missing_once(exc)
+
     resp = (
         await db.table("provider_status")
         .select("monthly_calls,month_key")

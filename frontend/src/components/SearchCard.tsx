@@ -136,7 +136,7 @@ export default function SearchCard({
                          min-h-[44px]"
             />
             {returnDateInvalid && (
-              <p className="text-xs text-red-600 mt-1">回程日期不能早於出發日期</p>
+              <p className="text-xs text-danger mt-1">回程日期不能早於出發日期</p>
             )}
           </div>
         )}

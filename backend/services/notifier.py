@@ -263,8 +263,21 @@ async def notify_pending_events() -> int:
         try:
             await tracker_repo.mark_event_notified(db, event["id"])
         except Exception as exc:
-            logger.warning("notifier: failed to mark event %s notified: %s", event.get("id"), exc)
-            continue
+            # L1: send 已成功，標記失敗會讓下輪重推同一則——立即重試一次縮小重複範圍；
+            # 若重試仍失敗，代表 DB 當下不穩定，直接停止本輪後續發送（維持「先送後標」
+            # 語意：漏通知比重複通知更糟，但沒必要在 DB 有問題時繼續放大重複面）。
+            logger.warning(
+                "notifier: failed to mark event %s notified, retrying once: %s",
+                event.get("id"), exc,
+            )
+            try:
+                await tracker_repo.mark_event_notified(db, event["id"])
+            except Exception as exc2:
+                logger.warning(
+                    "notifier: retry also failed for event %s, stopping this run: %s",
+                    event.get("id"), exc2,
+                )
+                break
         sent += 1
 
     return sent

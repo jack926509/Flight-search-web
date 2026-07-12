@@ -89,7 +89,7 @@ export default function TrackerDrawer({
 
             <div className="p-4 overflow-y-auto space-y-3">
               {loading && <p className="text-sm text-muted">讀取追蹤清單中…</p>}
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-danger">{error}</p>}
               {!loading && trackers.length === 0 && (
                 <div className="py-12 text-center space-y-2">
                   <p aria-hidden className="text-3xl">🔔</p>
@@ -157,7 +157,7 @@ export default function TrackerDrawer({
                       <button
                         type="button"
                         onClick={() => onDelete(tracker.id)}
-                        className="px-3 py-2 text-xs rounded-lg border border-red-200 text-red-600 hover:bg-red-50 min-h-[36px]"
+                        className="px-3 py-2 text-xs rounded-lg border border-danger text-danger hover:bg-danger-bg min-h-[36px]"
                       >
                         刪除
                       </button>

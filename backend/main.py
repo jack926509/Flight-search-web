@@ -5,6 +5,8 @@ import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import date as DateType
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +33,10 @@ from services.tracker_service import (
 )
 
 logger = logging.getLogger(__name__)
+
+# L3: 日期驗證用台北當日，而非伺服器（Zeabur 為 UTC）本地日期；
+# 與 services/scheduler.py 的 _TZ 用法一致。
+_TZ = ZoneInfo("Asia/Taipei")
 
 _fast_flights = FastFlightsProvider()
 _kiwi = KiwiProvider()
@@ -139,7 +145,7 @@ def _validate_date(value: str, field: str) -> DateType:
         parsed = DateType.fromisoformat(value)
     except ValueError:
         raise HTTPException(status_code=422, detail=f"{field} must be YYYY-MM-DD")
-    if parsed < DateType.today():
+    if parsed < datetime.now(_TZ).date():
         raise HTTPException(status_code=422, detail=f"{field} must be today or in the future")
     return parsed
 

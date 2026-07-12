@@ -45,7 +45,7 @@ function GradeBadge({ grade }: { grade: ScanGrade | null }) {
     );
   }
   return (
-    <span className="inline-block text-[11px] font-bold text-red-600 bg-red-50
+    <span className="inline-block text-[11px] font-bold text-danger bg-danger-bg
                      px-2 py-0.5 rounded-full">
       🔴 偏高
     </span>
@@ -142,7 +142,16 @@ export default function StationScanResults({ snapshot, results, running, progres
                     <td className="p-2 text-sm text-ink whitespace-nowrap">
                       {row.station} → {snapshot.dest}
                       {row.isBaseline && (
-                        <span className="ml-1.5 text-[11px] text-muted">（直飛基準）</span>
+                        <span className="ml-1.5 text-[11px] text-muted">
+                          {row.isApproximateBaseline ? (
+                            <>
+                              （基準・當日無直飛）
+                              <span title="當日查無直飛，暫以最便宜轉機價作為基準" className="ml-0.5">＊</span>
+                            </>
+                          ) : (
+                            "（直飛基準）"
+                          )}
+                        </span>
                       )}
                     </td>
                     <td className="p-2 text-xs text-muted whitespace-nowrap">{mmdd(row.date)}</td>
@@ -168,7 +177,7 @@ export default function StationScanResults({ snapshot, results, running, progres
         )}
         <p className="text-xs text-muted mt-3">
           🟢 底價＝對全體最低價 5% 以內；🟡 一般＝15% 以內；🔴 偏高＝超過 15%。
-          「＊」＝當日查無直飛，VS 直飛以最便宜轉機價估算。掃描未完成時徽章顯示「計算中」，全部完成後才定案。
+          「＊」＝當日查無直飛，基準列或 VS 直飛皆改以最便宜轉機價估算。掃描未完成時徽章顯示「計算中」，全部完成後才定案。
         </p>
       </div>
 

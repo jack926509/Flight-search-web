@@ -82,7 +82,7 @@ export default function MultiSearchCard({
                 onClick={() => onRemoveLeg(i)}
                 aria-label={`移除第 ${i + 1} 段`}
                 className="mb-1 p-2 rounded-full border border-line text-muted
-                           hover:bg-red-50 hover:text-red-500 hover:border-red-300
+                           hover:bg-danger-bg hover:text-danger hover:border-danger
                            transition-colors shrink-0 min-h-[44px] min-w-[44px]"
               >
                 ✕

@@ -136,7 +136,7 @@ export default function StationScanCard({
         </div>
       </div>
       {!daysOk && (
-        <p className="text-xs text-red-600 mb-3">
+        <p className="text-xs text-danger mb-3">
           日期範圍最多 {MAX_SCAN_DAYS} 天，請縮小起迄區間
         </p>
       )}
@@ -214,7 +214,7 @@ export default function StationScanCard({
             ＋ 新增
           </button>
         </div>
-        {customError && <p className="text-xs text-red-600 mt-1">{customError}</p>}
+        {customError && <p className="text-xs text-danger mt-1">{customError}</p>}
 
         {customStations.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-2">

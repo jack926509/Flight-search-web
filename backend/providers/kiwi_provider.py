@@ -45,6 +45,16 @@ def _to_kiwi_date(iso_date: str) -> str:
     return f"{d}/{m}/{y}"
 
 
+def _format_time(iso_str: str) -> str:
+    """解析 ISO 8601 時間字串為 HH:MM。
+
+    L4：原本用固定切片 `[11:16]`，若 Kiwi 回傳的格式跟預期不同，切片不會拋例外，
+    只會靜默得到錯誤或空白時間。改用 `datetime.fromisoformat` 讓格式異常時明確
+    拋出 ValueError，交給呼叫端既有的逐筆 try/except 記 log 並跳過該筆 itinerary。
+    """
+    return datetime.fromisoformat(iso_str).strftime("%H:%M")
+
+
 class KiwiProvider(FlightProvider):
     name = "kiwi"
 
@@ -112,8 +122,13 @@ class KiwiProvider(FlightProvider):
                 fx = _FX_USD_TWD
                 original_currency = "USD"
             else:
+                # L5：非 TWD/USD 幣別無兜底匯率可換算，防禦性丟棄整批結果。search_chain
+                # 對「回傳空 flights 清單」視為該 provider 的正常成功結果（非錯誤，見
+                # search_chain.py 的 G2 註解），不會被誤判成 provider 失敗；這裡把丟棄
+                # 事件記進 log，方便日後發現需要擴充兜底匯率表。
                 logger.warning(
-                    "kiwi: response in %s with no FX rate — dropping results", response_currency
+                    "kiwi: response in %s with no FX rate — dropping results (origin=%s dest=%s date=%s)",
+                    response_currency, origin, dest, date,
                 )
                 return []
 
@@ -126,8 +141,8 @@ class KiwiProvider(FlightProvider):
                 flights.append(Flight(
                     airline=first_seg.get("carrier", ""),
                     flight_no=first_seg.get("flightNumber", ""),
-                    depart_time=outbound["departureTime"][11:16],
-                    arrive_time=outbound["arrivalTime"][11:16],
+                    depart_time=_format_time(outbound["departureTime"]),
+                    arrive_time=_format_time(outbound["arrivalTime"]),
                     duration_min=int(outbound["durationSeconds"]) // 60,
                     stops=int(outbound.get("stops", max(len(segments) - 1, 0))),
                     price=round(float(itin["price"]) * fx),

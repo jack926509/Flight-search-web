@@ -163,3 +163,41 @@ async def test_kiwi_single_parse_failure_does_not_crash():
 
     assert len(result.flights) == 1
     assert result.flights[0].flight_no == "MM620"
+
+
+@pytest.mark.asyncio
+async def test_kiwi_malformed_time_string_skips_itinerary():
+    """L4：時間字串非 ISO 格式時，該筆 itinerary 跳過（不讓錯誤時間流出去），其餘照常回傳。"""
+    from unittest.mock import AsyncMock
+    from providers.kiwi_provider import KiwiProvider
+
+    payload = _make_kiwi_payload()
+    bad = _make_kiwi_payload(price=3000)["itineraries"][0]
+    bad["outbound"]["departureTime"] = "not-a-timestamp"  # 舊版切片會靜默得到 "estam"
+    payload["itineraries"].insert(0, bad)
+
+    provider = KiwiProvider()
+    with patch.object(provider, "_call_mcp", new=AsyncMock(return_value=payload)):
+        result = await provider.search("TPE", "NRT", "2026-08-05")
+
+    # 畸形時間那筆被跳過，只剩正常那筆，且時間格式正確
+    assert len(result.flights) == 1
+    assert result.flights[0].depart_time == "02:00"
+    assert result.flights[0].arrive_time == "06:30"
+
+
+@pytest.mark.asyncio
+async def test_kiwi_unknown_currency_returns_empty_result():
+    """L5：非 TWD/USD 幣別（無兜底匯率）時整批防禦性丟棄，回傳空結果而非錯誤。"""
+    from unittest.mock import AsyncMock
+    from providers.kiwi_provider import KiwiProvider
+
+    provider = KiwiProvider()
+    payload = _make_kiwi_payload(price=250, currency="EUR")
+
+    with patch.object(provider, "_call_mcp", new=AsyncMock(return_value=payload)):
+        result = await provider.search("TPE", "NRT", "2026-08-05")
+
+    # 空 flights 清單是成功結果（G2）：search_chain 不會視為 provider 失敗
+    assert result.source == "kiwi"
+    assert result.flights == []

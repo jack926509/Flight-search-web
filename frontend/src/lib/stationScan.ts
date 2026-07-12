@@ -56,6 +56,8 @@ export interface ScanRow {
   flight: Flight;
   /** 是否為 TPE 直飛基準列（VS 直飛欄位對自身顯示「——」） */
   isBaseline: boolean;
+  /** 僅 isBaseline 列適用：當日查無直飛，本列改以最便宜轉機價充當基準，非真正直飛 */
+  isApproximateBaseline?: boolean;
   /** 分級：掃描中（未 done）一律 null，UI 顯示「計算中」灰色徽章 */
   grade: ScanGrade | null;
   vsDirect: ScanVsDirect | null;
@@ -173,6 +175,7 @@ export function computeRows(
         date,
         flight: rowFlight,
         isBaseline: true,
+        isApproximateBaseline: !direct,
         grade: null,
         vsDirect: null,
       });
@@ -225,8 +228,13 @@ interface ParamsLike {
   get(key: string): string | null;
 }
 
+/** 合法艙等值，與 StationScanCard 的 CABINS 選單一致 */
+const VALID_CABINS = ["economy", "premium-economy", "business", "first"];
+
 export function decodeScanParams(searchParams: ParamsLike): ScanParams & { valid: boolean } {
-  const dest = (searchParams.get("dest") || "").trim().toUpperCase();
+  // dest 需為 3 碼英文機場代碼，否則視為未填（避免分享連結帶入非法代碼直接打到 API 全格出錯）
+  const destRaw = (searchParams.get("dest") || "").trim().toUpperCase();
+  const dest = /^[A-Z]{3}$/.test(destRaw) ? destRaw : "";
   const from = searchParams.get("from") || "";
   const to = searchParams.get("to") || "";
   // 去重＋排除 TPE：重複代碼會造成重複 cellKey（進度灌水、React 重複 key），
@@ -240,7 +248,13 @@ export function decodeScanParams(searchParams: ParamsLike): ScanParams & { valid
     )
   ).slice(0, MAX_SCAN_STATIONS);
   const adults = Math.max(1, Math.min(9, Number(searchParams.get("adults")) || 1));
-  const cabin = searchParams.get("cabin") || "economy";
-  const valid = !!dest && !!from && !!to && stations.length > 0;
+  // cabin 非白名單值一律 fallback 為 economy，不讓分享連結帶入未知艙等直接打到 API
+  const cabinRaw = searchParams.get("cabin") || "economy";
+  const cabin = VALID_CABINS.includes(cabinRaw) ? cabinRaw : "economy";
+  // 日期需合法且天數落在 1～MAX_SCAN_DAYS 之間，否則 valid=false
+  // （分享連結帶非法日期時，過去 valid=true 但 filled=false 會靜默無動作，使用者看不出原因）
+  const dayCount = datesInRange(from, to).length;
+  const datesOk = dayCount > 0 && dayCount <= MAX_SCAN_DAYS;
+  const valid = !!dest && !!from && !!to && stations.length > 0 && datesOk;
   return { dest, from, to, stations, adults, cabin, valid };
 }

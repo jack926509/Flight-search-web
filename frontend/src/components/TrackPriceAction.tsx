@@ -60,7 +60,7 @@ export default function TrackPriceAction({ defaultPrice, disabled = false, onTra
           {status === "saving" ? "建立中…" : status === "done" ? "已追蹤" : "追蹤"}
         </button>
         {status === "error" && (
-          <span className="text-xs text-red-600">建立失敗</span>
+          <span className="text-xs text-danger">建立失敗</span>
         )}
       </div>
     </div>

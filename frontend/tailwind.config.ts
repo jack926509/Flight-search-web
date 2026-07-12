@@ -18,6 +18,7 @@ const config: Config = {
         },
         price: "#9A4620",
         warning: { DEFAULT: "#B45309", bg: "#FEF3C7" },
+        danger: { DEFAULT: "#9A3324", bg: "#F8ECE9" },
         surface: { DEFAULT: "#FFFFFF", bg: "#FDFBF9" },
         // 暖砂語意色：文字、邊框、輸入框底
         ink: "#2B2420",
