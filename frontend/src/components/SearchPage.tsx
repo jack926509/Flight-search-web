@@ -9,10 +9,13 @@ import MultiSearchCard from "./MultiSearchCard";
 import MultiLegResults from "./MultiLegResults";
 import ComboSearchCard from "./ComboSearchCard";
 import ComboMatrix from "./ComboMatrix";
+import StationScanCard from "./StationScanCard";
+import StationScanResults from "./StationScanResults";
 import TrackerDrawer from "./TrackerDrawer";
 import { useSearch } from "@/hooks/useSearch";
 import { useMultiSearch } from "@/hooks/useMultiSearch";
 import { useComboSearch } from "@/hooks/useComboSearch";
+import { useStationScan } from "@/hooks/useStationScan";
 import { useHealth } from "@/hooks/useHealth";
 import { useTrackers } from "@/hooks/useTrackers";
 
@@ -47,11 +50,12 @@ export default function SearchPage() {
 
   const multi = useMultiSearch();
   const combo = useComboSearch();
+  const scan = useStationScan();
   const trackers = useTrackers();
   const searchParams = useSearchParams();
   const urlMode = searchParams.get("mode");
-  const [mode, setMode] = useState<"single" | "multi" | "combo">(
-    urlMode === "multi" ? "multi" : urlMode === "combo" ? "combo" : "single"
+  const [mode, setMode] = useState<"single" | "multi" | "combo" | "scan">(
+    urlMode === "multi" ? "multi" : urlMode === "combo" ? "combo" : urlMode === "scan" ? "scan" : "single"
   );
 
   const health = useHealth();
@@ -140,6 +144,20 @@ export default function SearchPage() {
             }`}
           >
             外站組合比價
+          </button>
+          <button
+            role="tab"
+            aria-selected={mode === "scan"}
+            type="button"
+            onClick={() => setMode("scan")}
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              mode === "scan"
+                ? "bg-primary text-white shadow-card"
+                : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
+            }`}
+          >
+            外站範圍掃描
           </button>
         </div>
 
@@ -278,7 +296,7 @@ export default function SearchPage() {
               onSelectFlight={multi.selectFlight}
             />
           </>
-        ) : (
+        ) : mode === "combo" ? (
           <>
             <ComboSearchCard
               legA={combo.legA}
@@ -301,6 +319,38 @@ export default function SearchPage() {
               resultsB={combo.resultsB}
               running={combo.running}
               progress={combo.progress}
+            />
+          </>
+        ) : (
+          <>
+            <StationScanCard
+              dest={scan.dest}
+              fromDate={scan.fromDate}
+              toDate={scan.toDate}
+              stations={scan.stations}
+              adults={scan.adults}
+              cabin={scan.cabin}
+              today={scan.today}
+              running={scan.running}
+              filled={scan.filled}
+              daysOk={scan.daysOk}
+              stationsOk={scan.stationsOk}
+              dayCount={scan.dayCount}
+              queryCount={scan.queryCount}
+              onDestChange={scan.setDest}
+              onFromDateChange={scan.setFromDate}
+              onToDateChange={scan.setToDate}
+              onStationsChange={scan.setStations}
+              onAdultsChange={scan.setAdults}
+              onCabinChange={scan.setCabin}
+              onSubmit={scan.runSearch}
+            />
+
+            <StationScanResults
+              snapshot={scan.snapshot}
+              results={scan.results}
+              running={scan.running}
+              progress={scan.progress}
             />
           </>
         )}
