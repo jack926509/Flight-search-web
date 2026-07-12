@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 _LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 
-_SITE_URL = os.getenv("SITE_URL", "https://flight-search-web-29x.pages.dev/")
+_SITE_URL = os.getenv("SITE_URL", "https://flight-search-web-29x.pages.dev/").rstrip("/") + "/"
 
 # 單次批次上限，保護 LINE 免費方案的每月推播配額
 _MAX_EVENTS_PER_RUN = 10
@@ -46,6 +46,21 @@ def _warn_missing_config_once() -> None:
     if not _warned_missing_config:
         logger.info("notifier: LINE_CHANNEL_ACCESS_TOKEN / LINE_TARGET_USER_ID 未設定，LINE 推播已靜默關閉")
         _warned_missing_config = True
+
+
+def _tracker_deep_link(tracker: dict) -> str:
+    """組出點開即自動搜尋該路線的網站連結（前端已支援 URL 參數自動查詢）。"""
+    from urllib.parse import urlencode
+
+    params: dict[str, str] = {
+        "origin": tracker.get("origin", ""),
+        "dest": tracker.get("dest", ""),
+        "date": str(tracker.get("depart_date", "")),
+    }
+    if tracker.get("trip_type") == "round-trip" and tracker.get("return_date"):
+        params["trip"] = "round-trip"
+        params["returnDate"] = str(tracker["return_date"])
+    return f"{_SITE_URL}?{urlencode(params)}"
 
 
 def _route_heading(tracker: dict) -> tuple[str, str]:
@@ -120,6 +135,8 @@ def _build_message(event: dict) -> dict | None:
 
     if event.get("event_type") == "target_price" and target:
         body_rows.append(_price_row("目標價", f"NT$ {target:,}"))
+        if previous and previous > price:
+            body_rows.append(_price_row("前次價格", f"NT$ {previous:,}", strike=True))
         body_rows.append(
             {
                 "type": "text",
@@ -176,7 +193,11 @@ def _build_message(event: dict) -> dict | None:
                     "style": "primary",
                     "color": _COLOR_PRIMARY,
                     "height": "sm",
-                    "action": {"type": "uri", "label": "開啟機票搜尋網站", "uri": _SITE_URL},
+                    "action": {
+                        "type": "uri",
+                        "label": "查看即時票價",
+                        "uri": _tracker_deep_link(tracker),
+                    },
                 }
             ],
         },

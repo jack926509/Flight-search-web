@@ -1,0 +1,22 @@
+name: keepalive
+
+# 每 15 分鐘 ping 後端 /api/health：
+# 1. 保持 Zeabur 服務不休眠
+# 2. /api/health 會 ping Supabase，順帶防止免費專案被暫停
+# 3. 連續失敗時 GitHub 會寄信通知 repo 擁有者（等同 UptimeRobot 告警）
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping /api/health
+        run: |
+          code=$(curl -s -o /tmp/body -w "%{http_code}" --max-time 30 https://flight-search-api.zeabur.app/api/health)
+          echo "HTTP $code"
+          cat /tmp/body
+          [ "$code" = "200" ]
