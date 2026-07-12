@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchHealth } from "@/lib/api";
+import { fetchHealth, type HealthStatus } from "@/lib/api";
 
 export type HealthLevel = "ok" | "degraded" | "down";
 
@@ -11,8 +11,20 @@ export type HealthLevel = "ok" | "degraded" | "down";
  * degraded — 後端 200 但 DB ping 失敗（快取／歷史失效，即時查詢仍可用）
  * down     — 後端不可達
  */
-export function useHealth(intervalMs = 60_000): HealthLevel {
-  const [level, setLevel] = useState<HealthLevel>("ok");
+export interface HealthSnapshot extends HealthStatus {
+  level: HealthLevel;
+}
+
+const INITIAL_HEALTH: HealthSnapshot = {
+  level: "ok",
+  ok: true,
+  db: null,
+  providers: {},
+  schedulers: {},
+};
+
+export function useHealth(intervalMs = 60_000): HealthSnapshot {
+  const [health, setHealth] = useState<HealthSnapshot>(INITIAL_HEALTH);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,9 +32,10 @@ export function useHealth(intervalMs = 60_000): HealthLevel {
     const check = async () => {
       const h = await fetchHealth();
       if (cancelled) return;
-      if (!h.ok) setLevel("down");
-      else if (h.db === false) setLevel("degraded");
-      else setLevel("ok");
+      const providerIssue = Object.values(h.providers).some((provider) => !provider.reachable);
+      const schedulerIssue = Object.values(h.schedulers).some((scheduler) => scheduler.last_status === "failed");
+      const level: HealthLevel = !h.ok ? "down" : h.db === false || providerIssue || schedulerIssue ? "degraded" : "ok";
+      setHealth({ ...h, level });
     };
 
     check();
@@ -33,5 +46,5 @@ export function useHealth(intervalMs = 60_000): HealthLevel {
     };
   }, [intervalMs]);
 
-  return level;
+  return health;
 }

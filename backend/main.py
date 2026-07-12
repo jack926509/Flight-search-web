@@ -18,6 +18,7 @@ from slowapi.util import get_remote_address
 
 from db import client as db_client
 from db import repository as repo
+from db import scan_repository as scan_repo
 from db import tracker_repository as tracker_repo
 from providers.fast_flights_provider import FastFlightsProvider
 from providers.kiwi_provider import KiwiProvider
@@ -31,6 +32,7 @@ from services.tracker_service import (
     hash_tracker_key,
     lowest_price,
 )
+from services.station_scan_service import build_tasks, dates_inclusive, resume_station_scans, start_station_scan
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,9 @@ async def lifespan(app: FastAPI):
 
         _chain = SearchChain([_fast_flights, _kiwi], circuit_breakers=_circuit_breakers)
         _cached_search = CachedSearch(_chain, db)
+
+        # 外站範圍掃描由後端持續執行；容器重啟後恢復未完成工作。
+        await resume_station_scans(db, _cached_search)
 
         # Start daily price scheduler
         from services.scheduler import create_scheduler
@@ -131,6 +136,15 @@ class TrackerPatch(BaseModel):
     target_price_twd: int | None = None
     enabled: bool | None = None
     mark_all_read: bool = False
+
+
+class StationScanCreate(BaseModel):
+    dest: str
+    from_date: str
+    to_date: str
+    stations: list[str]
+    adults: int = 1
+    cabin: str = "economy"
 
 
 def _validate_iata(value: str, field: str) -> None:
@@ -242,27 +256,43 @@ async def global_exception_handler(request, exc):
 @app.get("/api/health")
 async def health():
     db_ok: bool | None = None
+    provider_health: dict[str, dict] = {}
+    scheduler_health: dict[str, dict] = {}
     if os.getenv("SUPABASE_URL"):
         try:
             db = await db_client.get_client()
             db_ok = await repo.ping_db(db)
+            if db_ok:
+                async with asyncio.timeout(5):
+                    provider_health = await repo.get_provider_health(db)
+                    scheduler_health = await repo.get_scheduler_health(db)
         except Exception:
             db_ok = False
+
+    def provider_summary(name: str) -> dict:
+        stored = provider_health.get(name, {})
+        state = stored.get("state", _circuit_breakers.get(name).current_state() if name in _circuit_breakers else "unknown")
+        throttled = bool(stored.get("throttled", getattr(_fast_flights, "_throttled", False) if name == "fast_flights" else False))
+        reachable = state == "closed" and not throttled
+        return {
+            "reachable": reachable,
+            "state": state,
+            "failure_count": stored.get("failure_count", 0),
+            "throttled": throttled,
+            "throttled_until": stored.get("throttled_until"),
+            "last_success_at": stored.get("last_success_at"),
+            "last_failure_at": stored.get("last_failure_at"),
+            "last_error": stored.get("last_error"),
+        }
 
     return {
         "status": "ok",
         "db": db_ok,
         "providers": {
-            "fast_flights": {
-                "reachable": True,
-                "throttled": _fast_flights._throttled,
-            },
-            # Kiwi MCP 免金鑰，無「未設定」狀態；實際可達性由熔斷器狀態反映
-            "kiwi": {"reachable": True},
+            "fast_flights": provider_summary("fast_flights"),
+            "kiwi": provider_summary("kiwi"),
         },
-        "circuit_breakers": {
-            name: cb.current_state() for name, cb in _circuit_breakers.items()
-        },
+        "schedulers": scheduler_health,
     }
 
 
@@ -427,12 +457,83 @@ async def delete_tracker(
     return {"ok": True}
 
 
+@app.post("/api/station-scans")
+@_limiter.limit("4/minute")
+async def create_station_scan(request: Request, payload: StationScanCreate):
+    _validate_iata(payload.dest, "dest")
+    from_date = _validate_date(payload.from_date, "from_date")
+    to_date = _validate_date(payload.to_date, "to_date")
+    _validate_cabin(payload.cabin)
+    stations = list(dict.fromkeys(station.upper() for station in payload.stations if station.upper() != "TPE"))
+    if not stations or len(stations) > 6:
+        raise HTTPException(status_code=422, detail="stations must contain 1 to 6 non-TPE airport codes")
+    for station in stations:
+        _validate_iata(station, "stations")
+    if to_date < from_date or (to_date - from_date).days > 6:
+        raise HTTPException(status_code=422, detail="date range must be 1 to 7 days")
+    if _cached_search is None:
+        raise HTTPException(status_code=503, detail="Database not configured")
+
+    db = await _tracker_db()
+    dates = dates_inclusive(payload.from_date, payload.to_date)
+    job_payload = {
+        "dest": payload.dest,
+        "stations": stations,
+        "from_date": payload.from_date,
+        "to_date": payload.to_date,
+        "adults": payload.adults,
+        "cabin": payload.cabin,
+        "status": "pending",
+    }
+    # Supabase 建立 job 後才知道 UUID，故先寫 job，再寫所有可持續追蹤的 cells。
+    try:
+        job_response = await db.table("station_scan_jobs").insert(job_payload).execute()
+        job = job_response.data[0]
+        cells = [{"job_id": job["id"], "station": station, "departure_date": day} for station, day in build_tasks(stations, dates)]
+        await db.table("station_scan_cells").insert(cells).execute()
+    except Exception:
+        # 避免 cell 建立失敗時留下無法恢復的 pending job。
+        if "job" in locals():
+            try:
+                await db.table("station_scan_jobs").delete().eq("id", job["id"]).execute()
+            except Exception:
+                pass
+        raise HTTPException(status_code=503, detail="Unable to create station scan")
+
+    start_station_scan(db, _cached_search, job["id"])
+    return {"job": job, "total": len(cells), "cells": []}
+
+
+@app.get("/api/station-scans/{job_id}")
+@_limiter.limit("30/minute")
+async def get_station_scan(request: Request, job_id: str):
+    db = await _tracker_db()
+    job = await _tracker_op(scan_repo.get_job(db, job_id))
+    if job is None:
+        raise HTTPException(status_code=404, detail="Station scan not found")
+    cells = await _tracker_op(scan_repo.get_cells(db, job_id))
+    done = sum(1 for cell in cells if cell["status"] in {"done", "empty", "error"})
+    return {"job": job, "total": len(cells), "done": done, "cells": cells}
+
+
+@app.delete("/api/station-scans/{job_id}")
+@_limiter.limit("10/minute")
+async def cancel_station_scan(request: Request, job_id: str):
+    db = await _tracker_db()
+    job = await _tracker_op(scan_repo.get_job(db, job_id))
+    if job is None:
+        raise HTTPException(status_code=404, detail="Station scan not found")
+    await _tracker_op(scan_repo.update_job(db, job_id, "cancelled"))
+    return {"ok": True}
+
+
 @app.get("/api/history")
 @_limiter.limit("20/minute")
 async def price_history(
     request: Request,
     route: str = Query(..., description="Route in format AAA-BBB"),
     days: int = Query(default=90, ge=1, le=365),
+    current_price: int | None = Query(default=None, ge=1),
 ):
     if not _ROUTE_RE.match(route):
         raise HTTPException(status_code=422, detail="route must be AAA-BBB format (e.g. TPE-NRT)")
@@ -447,4 +548,4 @@ async def price_history(
             data = await repo.get_price_history(db, route, days)
     except Exception:
         raise HTTPException(status_code=503, detail="Database unavailable")
-    return {"route": route, "days": days, "history": data}
+    return {"route": route, "days": days, "history": data, "summary": repo.summarize_price_history(data, current_price)}

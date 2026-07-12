@@ -129,6 +129,10 @@ def _build_message(event: dict) -> dict | None:
             ],
         },
     ]
+    if event.get("created_at"):
+        body_rows.append(
+            {"type": "text", "text": f"資料時間：{event['created_at']}", "size": "xs", "color": _COLOR_MUTED}
+        )
 
     target = event.get("target_price_twd")
     previous = event.get("previous_price_twd")

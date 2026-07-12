@@ -61,9 +61,9 @@ export default function SearchPage() {
   const health = useHealth();
   // 狀態燈以真實 /api/health 為準；上次搜尋失敗也視為異常訊號
   const light =
-    health === "down" || status === "error"
+    health.level === "down" || status === "error"
       ? { color: "bg-danger", text: "異常", hint: "後端服務無回應" }
-      : health === "degraded"
+      : health.level === "degraded"
         ? { color: "bg-yellow-400", text: "部分異常", hint: "資料庫離線，快取與價格歷史暫停，即時查詢仍可用" }
         : { color: "bg-green-400", text: "正常", hint: "所有服務正常" };
 
@@ -83,6 +83,8 @@ export default function SearchPage() {
             onToggle={(id, enabled) => void trackers.setTrackerEnabled(id, enabled)}
             onMarkRead={(id) => void trackers.markTrackerRead(id)}
             onDelete={(id) => void trackers.removeTracker(id)}
+            trackerKey={trackers.trackerKey}
+            onRestore={(key) => trackers.restore(key)}
           />
           <div
             className="flex items-center gap-1.5 text-xs text-muted"
@@ -95,13 +97,36 @@ export default function SearchPage() {
         </div>
       </header>
 
+      <div className="px-4 pt-3">
+        <details className="w-full max-w-3xl mx-auto rounded-lg border border-line bg-white text-xs text-muted">
+          <summary className="cursor-pointer px-4 py-3 font-medium text-ink">系統與資料狀態</summary>
+          <div className="border-t border-line-soft px-4 py-3 space-y-2 text-pretty">
+            <p>資料庫：{health.db === true ? "正常" : health.db === false ? "暫時無法使用；即時查詢可能仍可用" : "尚未設定或尚未取得狀態"}</p>
+            {Object.entries(health.providers).map(([name, provider]) => (
+              <p key={name}>
+                {name === "fast_flights" ? "Google Flights" : "Kiwi.com"}：{provider.reachable ? "近期正常" : "近期異常"}
+                {provider.last_success_at ? `・最近成功 ${new Date(provider.last_success_at).toLocaleString("zh-TW")}` : ""}
+                {provider.last_failure_at ? `・最近失敗 ${new Date(provider.last_failure_at).toLocaleString("zh-TW")}` : ""}
+              </p>
+            ))}
+            {Object.entries(health.schedulers).map(([name, scheduler]) => (
+              <p key={name}>
+                {name === "daily_price_fetch" ? "每日價格整理" : "價格追蹤"}：{scheduler.last_status === "failed" ? "最近一次失敗" : scheduler.last_status === "running" ? "執行中" : "最近一次完成"}
+                {scheduler.last_finished_at ? `・${new Date(scheduler.last_finished_at).toLocaleString("zh-TW")}` : ""}
+              </p>
+            ))}
+            <p>所有票價均為查詢當下資料，訂票前仍須以訂票頁為準。</p>
+          </div>
+        </details>
+      </div>
+
       {/* Main */}
       <main className="flex-1 px-4 py-8">
-        {/* Mode tabs */}
+        {/* 主要入口：先讓一般使用者選目的，再提供外站進階工具 */}
         <div
           role="tablist"
-          aria-label="查詢模式"
-          className="flex gap-2 w-full max-w-3xl mx-auto mb-4"
+          aria-label="主要查詢方式"
+          className="grid grid-cols-2 gap-2 w-full max-w-3xl mx-auto mb-3"
         >
           <button
             role="tab"
@@ -115,51 +140,44 @@ export default function SearchPage() {
                 : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
             }`}
           >
-            單程 / 來回
+            一般找票
           </button>
           <button
             role="tab"
-            aria-selected={mode === "multi"}
-            type="button"
-            onClick={() => setMode("multi")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-              mode === "multi"
-                ? "bg-primary text-white shadow-card"
-                : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
-            }`}
-          >
-            多段行程（外站・四腿）
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === "combo"}
-            type="button"
-            onClick={() => setMode("combo")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-              mode === "combo"
-                ? "bg-primary text-white shadow-card"
-                : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
-            }`}
-          >
-            外站組合比價
-          </button>
-          <button
-            role="tab"
-            aria-selected={mode === "scan"}
+            aria-selected={mode !== "single"}
             type="button"
             onClick={() => setMode("scan")}
             className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
-              mode === "scan"
+              mode !== "single"
                 ? "bg-primary text-white shadow-card"
                 : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
             }`}
           >
-            外站範圍掃描
+            找外站便宜票
           </button>
         </div>
+
+        {mode !== "single" && (
+          <div className="flex flex-wrap justify-center gap-2 w-full max-w-3xl mx-auto mb-4" aria-label="外站進階工具">
+            {([
+              ["scan", "外站範圍掃描"],
+              ["combo", "定位票日期組合"],
+              ["multi", "指定多段行程"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setMode(value)}
+                className={`min-h-[40px] rounded-full px-3 py-2 text-xs font-medium ${
+                  mode === value ? "bg-primary text-white" : "border border-line bg-white text-muted hover:bg-field"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {mode === "single" ? (
           <>
@@ -351,6 +369,7 @@ export default function SearchPage() {
               results={scan.results}
               running={scan.running}
               progress={scan.progress}
+              onCancel={() => void scan.cancel()}
             />
           </>
         )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchPriceHistory, type PricePoint } from "@/lib/api";
+import { fetchPriceHistory, fetchPriceHistorySummary, type PriceHistorySummary, type PricePoint } from "@/lib/api";
 import dynamic from "next/dynamic";
 
 const Line = dynamic(
@@ -67,20 +67,22 @@ const Line = dynamic(
 
 interface Props {
   route: string; // e.g. "TPE-NRT"
+  currentPrice?: number;
 }
 
-export default function PriceTrendSection({ route }: Props) {
+export default function PriceTrendSection({ route, currentPrice }: Props) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState<PriceHistorySummary | null>(null);
 
   useEffect(() => {
     if (!open || data.length > 0) return;
     setLoading(true);
-    fetchPriceHistory(route, 90)
-      .then(setData)
+    Promise.all([fetchPriceHistory(route, 90), fetchPriceHistorySummary(route, 90, currentPrice)])
+      .then(([history, historySummary]) => { setData(history); setSummary(historySummary); })
       .finally(() => setLoading(false));
-  }, [open, route, data.length]);
+  }, [open, route, data.length, currentPrice]);
 
   return (
     <div className="bg-white rounded-xl border border-line overflow-hidden">
@@ -117,6 +119,16 @@ export default function PriceTrendSection({ route }: Props) {
             </div>
           )}
           {!loading && data.length >= 3 && <Line data={data} />}
+          {!loading && summary && (
+            <p className="mt-3 text-xs text-muted text-pretty">
+              {summary.judgement === "collecting"
+                ? `資料累積中：目前 ${summary.sample_count} 筆，至少累積 10 筆才會判斷近期價格。`
+                : summary.judgement === "recent_low"
+                  ? `近期低價：目前比較價低於近 90 天第 20 百分位（NT$ ${summary.p20?.toLocaleString()}），樣本 ${summary.sample_count} 筆。`
+                  : `價格比較：近 90 天第 20 百分位 NT$ ${summary.p20?.toLocaleString()}，平均 NT$ ${summary.average?.toLocaleString()}，樣本 ${summary.sample_count} 筆。`}
+              {summary.sources.length > 1 ? " 不同資料來源的價格可能有差異，僅供比較。" : ""}
+            </p>
+          )}
         </div>
       )}
     </div>

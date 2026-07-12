@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { computeRows, type ScanCell, type ScanGrade } from "@/lib/stationScan";
 import ShareLinkButton from "./ShareLinkButton";
+import ExternalCostCard from "./ExternalCostCard";
 
 interface Props {
   snapshot: {
@@ -13,6 +14,7 @@ interface Props {
   results: Record<string, ScanCell>;
   running: boolean;
   progress: { done: number; total: number };
+  onCancel?: () => void;
 }
 
 function mmdd(iso: string): string {
@@ -32,7 +34,7 @@ function GradeBadge({ grade }: { grade: ScanGrade | null }) {
     return (
       <span className="inline-block text-[11px] font-bold text-green bg-green-soft
                        px-2 py-0.5 rounded-full">
-        🟢 底價
+        🟢 本次最低
       </span>
     );
   }
@@ -40,19 +42,20 @@ function GradeBadge({ grade }: { grade: ScanGrade | null }) {
     return (
       <span className="inline-block text-[11px] font-bold text-warning bg-warning-bg
                        px-2 py-0.5 rounded-full">
-        🟡 一般
+        🟡 接近本次最低
       </span>
     );
   }
   return (
     <span className="inline-block text-[11px] font-bold text-danger bg-danger-bg
                      px-2 py-0.5 rounded-full">
-      🔴 偏高
+      🔴 高於本次最低
     </span>
   );
 }
 
-export default function StationScanResults({ snapshot, results, running, progress }: Props) {
+export default function StationScanResults({ snapshot, results, running, progress, onCancel }: Props) {
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const done = progress.total > 0 && progress.done === progress.total;
 
   const rows = useMemo(() => {
@@ -81,6 +84,18 @@ export default function StationScanResults({ snapshot, results, running, progres
           <span className="animate-spin inline-block w-4 h-4 border-2 border-primary
                            border-t-transparent rounded-full shrink-0" />
           外站範圍掃描中：已完成 {progress.done} / {progress.total} 筆查詢（結果逐格填入）
+          {onCancel && <button type="button" onClick={() => setConfirmCancel(true)} className="ml-auto min-h-[36px] rounded border border-line bg-white px-3 py-1 text-xs text-ink hover:bg-field">取消掃描</button>}
+        </div>
+      )}
+
+      {confirmCancel && (
+        <div role="alertdialog" aria-modal="true" aria-label="確認取消外站掃描" className="rounded-card border border-line bg-white p-4 shadow-card">
+          <p className="text-sm font-semibold text-ink">要取消這次外站掃描嗎？</p>
+          <p className="mt-1 text-xs text-muted">已完成的結果會保留，但尚未開始的查詢不會再執行。</p>
+          <div className="mt-3 flex gap-2">
+            <button type="button" onClick={() => { onCancel?.(); setConfirmCancel(false); }} className="min-h-[40px] rounded-lg bg-danger px-3 py-2 text-xs font-semibold text-white">確認取消</button>
+            <button type="button" onClick={() => setConfirmCancel(false)} className="min-h-[40px] rounded-lg border border-line bg-white px-3 py-2 text-xs text-ink hover:bg-field">繼續掃描</button>
+          </div>
         </div>
       )}
 
@@ -88,7 +103,7 @@ export default function StationScanResults({ snapshot, results, running, progres
         <p className="text-sm font-semibold text-ink mb-3">
           外站範圍掃描結果
           <span className="ml-2 text-xs font-normal text-muted">
-            目的地 {snapshot.dest}・依價格由低到高排序・分級基準為全體最低價
+            目的地 {snapshot.dest}・依價格由低到高排序・分級僅比較本次掃描結果
           </span>
         </p>
 
@@ -168,6 +183,14 @@ export default function StationScanResults({ snapshot, results, running, progres
                       ) : (
                         <span className="text-muted">—</span>
                       )}
+                      {!row.isBaseline && (
+                        <ExternalCostCard
+                          station={row.station}
+                          date={row.date}
+                          flight={row.flight}
+                          directPrice={row.vsDirect ? row.flight.price - row.vsDirect.diff : null}
+                        />
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -176,7 +199,7 @@ export default function StationScanResults({ snapshot, results, running, progres
           </div>
         )}
         <p className="text-xs text-muted mt-3">
-          🟢 底價＝對全體最低價 5% 以內；🟡 一般＝15% 以內；🔴 偏高＝超過 15%。
+          🟢 本次最低＝與本次掃描最低價差 5% 以內；🟡 接近本次最低＝15% 以內；🔴 高於本次最低＝超過 15%。
           「＊」＝當日查無直飛，基準列或 VS 直飛皆改以最便宜轉機價估算。掃描未完成時徽章顯示「計算中」，全部完成後才定案。
         </p>
       </div>

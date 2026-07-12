@@ -171,3 +171,12 @@ async def test_disabled_tracker_is_not_checked():
 
     assert price is None
     cached.search.assert_not_called()
+
+
+def test_tracker_interval_is_shorter_when_departure_is_near():
+    from services.tracker_service import tracker_check_interval_hours
+
+    assert tracker_check_interval_hours(date.today() + timedelta(days=120)) == 24
+    assert tracker_check_interval_hours(date.today() + timedelta(days=45)) == 12
+    assert tracker_check_interval_hours(date.today() + timedelta(days=14)) == 6
+    assert tracker_check_interval_hours(date.today() + timedelta(days=3)) == 12

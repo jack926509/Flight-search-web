@@ -38,25 +38,39 @@ async def _fetch_route(route: str, cached_search, db) -> None:
 async def _daily_job(cached_search, db) -> None:
     logger.info("scheduler: daily_job starting")
     try:
+        await repo.mark_scheduler_started(db, "daily_price_fetch")
         routes = await repo.get_tracked_routes(db)
     except Exception as exc:
         logger.error("scheduler: failed to get tracked routes: %s", exc)
+        try:
+            await repo.mark_scheduler_finished(db, "daily_price_fetch", "failed", str(exc))
+        except Exception:
+            pass
         return
 
     await asyncio.gather(
         *[_fetch_route(r, cached_search, db) for r in routes],
         return_exceptions=True,
     )
+    try:
+        await repo.mark_scheduler_finished(db, "daily_price_fetch", "success")
+    except Exception as exc:
+        logger.warning("scheduler: could not persist daily_price_fetch status: %s", exc)
     logger.info("scheduler: daily_job done (%d routes)", len(routes))
 
 
 async def _tracker_job(cached_search, db) -> None:
     logger.info("scheduler: tracker_job starting")
     try:
+        await repo.mark_scheduler_started(db, "daily_tracker_check")
         from services.tracker_service import check_all_trackers
         checked = await check_all_trackers(db, cached_search)
     except Exception as exc:
         logger.error("scheduler: tracker_job failed: %s", exc)
+        try:
+            await repo.mark_scheduler_finished(db, "daily_tracker_check", "failed", str(exc))
+        except Exception:
+            pass
         return
     logger.info("scheduler: tracker_job done (%d trackers checked)", checked)
 
@@ -66,6 +80,16 @@ async def _tracker_job(cached_search, db) -> None:
         logger.info("scheduler: tracker_job notified (%d events sent)", sent)
     except Exception as exc:
         logger.error("scheduler: tracker_job notify failed: %s", exc)
+        try:
+            await repo.mark_scheduler_finished(db, "daily_tracker_check", "failed", str(exc))
+        except Exception:
+            pass
+        return
+
+    try:
+        await repo.mark_scheduler_finished(db, "daily_tracker_check", "success")
+    except Exception as exc:
+        logger.warning("scheduler: could not persist daily_tracker_check status: %s", exc)
 
 
 def create_scheduler(cached_search, db) -> AsyncIOScheduler:
@@ -80,7 +104,9 @@ def create_scheduler(cached_search, db) -> AsyncIOScheduler:
     )
     scheduler.add_job(
         _tracker_job,
-        trigger=CronTrigger(hour=10, minute=0, timezone="Asia/Taipei"),
+        # 以 6 小時為 scheduler 節奏；實際是否查詢由 tracker_check_interval_hours()
+        # 依出發日決定，避免遠期航線不必要地耗用資料來源額度。
+        trigger=CronTrigger(hour="0,6,12,18", minute=0, timezone="Asia/Taipei"),
         args=[cached_search, db],
         id="daily_tracker_check",
         replace_existing=True,

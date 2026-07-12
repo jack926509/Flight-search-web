@@ -2,7 +2,7 @@ import type { Flight } from "@/lib/api";
 
 /**
  * 外站範圍掃描：比較「從多個外站出發到同一目的地、多個日期」的單程票價，
- * 找出底價出發點與日期。另加 TPE→目的地 同日期範圍作為直飛基準（VS 直飛差額）。
+ * 找出本次掃描中最低的出發點與日期。另加 TPE→目的地 同日期範圍作為直飛基準（VS 直飛差額）。
  * 第一期只做外站直票掃描，拆票（外站→TPE 銜接段）留擴充點、不實作內容。
  */
 
@@ -108,7 +108,7 @@ export function buildTasks(stations: string[], dates: string[]): ScanTask[] {
 }
 
 function cheapestOf(flights: Flight[]): Flight | null {
-  // price ≤ 0 視為無效報價：0 元航班會把全表分級基準拉到 0，所有列都誤標「底價」
+  // price ≤ 0 視為無效報價：0 元航班會把全表分級基準拉到 0，所有列都誤標「本次最低」
   const priced = flights.filter((f) => f.price > 0);
   if (priced.length === 0) return null;
   return [...priced].sort((a, b) => a.price - b.price)[0];
@@ -118,7 +118,7 @@ function cheapestDirectOf(flights: Flight[]): Flight | null {
   return cheapestOf(flights.filter((f) => f.stops === 0));
 }
 
-/** 對全體最低價 ≤5%＝底價、≤15%＝一般、其餘＝偏高 */
+/** 對本次掃描最低價 ≤5%＝本次最低、≤15%＝接近本次最低、其餘＝高於本次最低 */
 export function gradePrice(price: number, minPrice: number): ScanGrade {
   if (minPrice <= 0) return "best";
   const pct = (price - minPrice) / minPrice;

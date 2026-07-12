@@ -1,9 +1,10 @@
-const ALLOWED_ENDPOINTS = new Set(["health", "search", "history", "trackers"]);
+const ALLOWED_ENDPOINTS = new Set(["health", "search", "history", "trackers", "station-scans"]);
 const ENDPOINT_METHODS = {
   health: new Set(["GET"]),
   search: new Set(["GET"]),
   history: new Set(["GET"]),
   trackers: new Set(["GET", "POST", "PATCH", "DELETE"]),
+  "station-scans": new Set(["GET", "POST", "DELETE"]),
 };
 
 const SECURITY_HEADERS = {

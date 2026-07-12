@@ -1,6 +1,8 @@
 """All Supabase DB operations for Phase 2+3."""
 import asyncio
 import logging
+import math
+import statistics
 from datetime import datetime, timedelta, timezone
 
 from supabase import AsyncClient
@@ -169,6 +171,32 @@ async def get_price_history(
     return resp.data
 
 
+def summarize_price_history(rows: list[dict], current_price: int | None = None) -> dict:
+    """Return transparent historical metrics; never gives a judgement under 10 samples."""
+    prices = sorted(int(row["lowest_price_twd"]) for row in rows if row.get("lowest_price_twd", 0) > 0)
+    sources = sorted({str(row.get("source", "unknown")) for row in rows})
+    count = len(prices)
+    if count < 10:
+        return {"sample_count": count, "sources": sources, "judgement": "collecting"}
+
+    position = (count - 1) * 0.2
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    p20 = round(prices[lower] + (prices[upper] - prices[lower]) * (position - lower))
+    judgement = "unknown"
+    if current_price is not None:
+        judgement = "recent_low" if current_price <= p20 else "normal_or_high"
+    return {
+        "sample_count": count,
+        "lowest": prices[0],
+        "average": round(statistics.mean(prices)),
+        "median": round(statistics.median(prices)),
+        "p20": p20,
+        "sources": sources,
+        "judgement": judgement,
+    }
+
+
 # ── Phase 3: scheduler + quota ────────────────────────────────────────────────
 
 async def get_tracked_routes(db: AsyncClient) -> list[str]:
@@ -259,3 +287,51 @@ async def ping_db(db: AsyncClient) -> bool:
         return True
     except Exception:
         return False
+
+
+# ── observability ─────────────────────────────────────────────────────────────
+
+_PROVIDER_HEALTH_FIELDS = (
+    "provider,state,failure_count,opened_at,last_success_at,last_failure_at,"
+    "last_error,throttled,throttled_until"
+)
+
+
+async def get_provider_health(db: AsyncClient) -> dict[str, dict]:
+    """Return public-safe provider status persisted by the backend.
+
+    `last_error` is truncated when written, so this endpoint never needs to
+    expose raw exception payloads or upstream response bodies.
+    """
+    resp = await db.table("provider_status").select(_PROVIDER_HEALTH_FIELDS).execute()
+    return {row["provider"]: row for row in resp.data}
+
+
+async def get_scheduler_health(db: AsyncClient) -> dict[str, dict]:
+    resp = (
+        await db.table("scheduler_status")
+        .select("job_name,last_status,last_started_at,last_finished_at,last_error")
+        .execute()
+    )
+    return {row["job_name"]: row for row in resp.data}
+
+
+async def mark_scheduler_started(db: AsyncClient, job_name: str) -> None:
+    await db.table("scheduler_status").upsert(
+        {"job_name": job_name, "last_status": "running", "last_started_at": _now_utc(), "last_error": None},
+        on_conflict="job_name",
+    ).execute()
+
+
+async def mark_scheduler_finished(
+    db: AsyncClient, job_name: str, status: str, error: str | None = None
+) -> None:
+    await db.table("scheduler_status").upsert(
+        {
+            "job_name": job_name,
+            "last_status": status,
+            "last_finished_at": _now_utc(),
+            "last_error": error[:240] if error else None,
+        },
+        on_conflict="job_name",
+    ).execute()

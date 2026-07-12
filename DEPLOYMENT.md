@@ -85,14 +85,23 @@ Cloudflare Pages production 環境變數：
 
 ## 4. 部署順序（變數相依關係）
 
-1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（`schema.sql` + `schema_v2.sql` + `schema_v3.sql` + `schema_v4.sql` + `schema_v5.sql` 已套用、RLS 已啟用；追蹤功能資料表為 server-only）
+1. ~~Supabase 建專案 → 執行 schema~~ ✅ 已完成（既有 migration 已套用、RLS 已啟用；追蹤功能資料表為 server-only）
+   - ⬜ **2026-07-12 優化版新增 migration**：依序在 Supabase SQL Editor 執行 `backend/db/schema_v8.sql`、`backend/db/schema_v9.sql`。前者新增 provider／排程健康狀態，後者新增可續看的外站掃描工作表；兩份均可安全重複執行。
 2. ~~`openssl rand -hex 24` 產生 `API_TOKEN`~~ ✅ 已完成並設於 Zeabur
 3. ~~Zeabur 部署後端~~ ✅ 已完成（Docker / FastAPI / uvicorn）
 4. ~~Cloudflare Pages 設定 `FLIGHT_SEARCH_API_URL` / `FLIGHT_SEARCH_API_TOKEN` → 由 GitHub integration 部署前端與 `functions/` proxy~~ ✅ 已完成（commit `0ae7b13` 自動部署成功）
 5. ~~回 Zeabur 把 `ALLOWED_ORIGINS` 改成 Pages 網域 → 重啟~~ ✅ 已完成
 6. UptimeRobot 打 `https://flight-search-api.zeabur.app/api/health`（5 分鐘）⬜ 待設定
 
-## 5. UptimeRobot
+## 5.1 2026-07-12 優化版部署後驗收
+
+1. Zeabur `/api/health`：確認 `providers` 與 `schedulers` 欄位存在，且不含 token／完整錯誤內容。
+2. Cloudflare Pages：首頁顯示「一般找票／找外站便宜票」兩個主入口。
+3. 外站掃描：建立一個低量工作（1 個外站、1 天），重新整理後確認進度與結果仍存在；再測試取消工作。
+4. 價格追蹤：建立一筆追蹤、複製恢復碼，在另一個瀏覽器匯入後確認清單可讀。
+5. 票價趨勢：樣本未滿 10 筆時顯示「資料累積中」；達 10 筆後才顯示近期比較結果。
+
+## 6. UptimeRobot
 
 建立 HTTP(s) monitor：
 

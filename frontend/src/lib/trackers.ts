@@ -1,4 +1,4 @@
-import { apiUrl, authHeaders } from "./api";
+import { apiUrl, authHeaders, timeoutSignal } from "./api";
 
 export type TrackerTripType = "one-way" | "round-trip";
 
@@ -84,7 +84,7 @@ export async function createTracker(
     },
     body: JSON.stringify(input),
     cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
+    signal: timeoutSignal(20_000),
   });
   return parseTrackerResponse<TrackerCreateResponse>(resp);
 }
@@ -93,7 +93,7 @@ export async function fetchTrackers(trackerKey: string): Promise<TrackerListResp
   const resp = await fetch(apiUrl("/api/trackers").toString(), {
     headers: trackerHeaders(trackerKey),
     cache: "no-store",
-    signal: AbortSignal.timeout(12_000),
+    signal: timeoutSignal(12_000),
   });
   return parseTrackerResponse<TrackerListResponse>(resp);
 }
@@ -111,7 +111,7 @@ export async function updateTracker(
     },
     body: JSON.stringify(changes),
     cache: "no-store",
-    signal: AbortSignal.timeout(12_000),
+    signal: timeoutSignal(12_000),
   });
   return parseTrackerResponse<TrackerListResponse>(resp);
 }
@@ -121,7 +121,7 @@ export async function deleteTracker(trackerKey: string, trackerId: string): Prom
     method: "DELETE",
     headers: trackerHeaders(trackerKey),
     cache: "no-store",
-    signal: AbortSignal.timeout(12_000),
+    signal: timeoutSignal(12_000),
   });
   await parseTrackerResponse(resp);
 }

@@ -62,6 +62,15 @@ test.describe("FlightSearch E2E", () => {
     });
     await page.route("**/api/trackers**", async (route) => {
       const method = route.request().method();
+      const corsHeaders = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-API-Token, X-Tracker-Key",
+      };
+      if (method === "OPTIONS") {
+        await route.fulfill({ status: 204, headers: corsHeaders });
+        return;
+      }
       const tracker = {
         id: "tracker-1",
         trip_type: "round-trip",
@@ -94,6 +103,7 @@ test.describe("FlightSearch E2E", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
+          headers: corsHeaders,
           body: JSON.stringify({ tracker_key: "trk_test_key_abcdefghijklmnopqrstuvwxyz123456", tracker, events: [], trackers: [tracker], unread_count: 0 }),
         });
         return;
@@ -103,6 +113,7 @@ test.describe("FlightSearch E2E", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
+          headers: corsHeaders,
           body: JSON.stringify({ tracker: { ...tracker, enabled: trackerEnabled }, trackers: [{ ...tracker, enabled: trackerEnabled }], events: [event], unread_count: 1 }),
         });
         return;
@@ -112,6 +123,7 @@ test.describe("FlightSearch E2E", () => {
         await route.fulfill({
           status: 200,
           contentType: "application/json",
+          headers: corsHeaders,
           body: JSON.stringify({ ok: true }),
         });
         return;
@@ -119,6 +131,7 @@ test.describe("FlightSearch E2E", () => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
+        headers: corsHeaders,
         body: JSON.stringify({ trackers: trackerDeleted ? [] : [{ ...tracker, enabled: trackerEnabled }], events: trackerDeleted ? [] : [event], unread_count: trackerDeleted ? 0 : 1 }),
       });
     });
@@ -131,14 +144,14 @@ test.describe("FlightSearch E2E", () => {
     await expect(page.getByLabel("回程日期")).toHaveValue("2030-10-05");
     await page.getByLabel("去程結果").locator("[role='option']").first().waitFor();
     await page.getByLabel("回程結果").locator("[role='option']").first().waitFor();
-    await expect(page.getByText("中華航空")).toBeVisible();
-    await expect(page.getByText("長榮航空")).toBeVisible();
+    await expect(page.getByLabel("去程報價選擇").getByText("中華航空")).toBeVisible();
+    await expect(page.getByLabel("回程報價選擇").getByText("長榮航空")).toBeVisible();
     await expect(page.getByText("China Airlines・CI100")).toBeVisible();
     await expect(page.getByText("EVA Air・BR198")).toBeVisible();
     await expect(page.getByLabel("中華航空 圖示")).toBeVisible();
     await expect(page.getByLabel("長榮航空 圖示")).toBeVisible();
-    await expect(page.getByLabel("中華航空 圖示").locator("img")).toHaveAttribute("src", /china-airlines\.com/);
-    await expect(page.getByLabel("長榮航空 圖示").locator("img")).toHaveAttribute("src", /evaair\.com/);
+    await expect(page.getByLabel("中華航空 圖示").locator("img")).toHaveAttribute("src", /pics\.avs\.io\/64\/64\/CI\.png/);
+    await expect(page.getByLabel("長榮航空 圖示").locator("img")).toHaveAttribute("src", /pics\.avs\.io\/64\/64\/BR\.png/);
 
     const totalText = (await page.getByLabel("來回總價").textContent()) ?? "";
     expect(totalText).toContain("已選 2 / 2 段合計");
@@ -156,7 +169,7 @@ test.describe("FlightSearch E2E", () => {
     await page.getByRole("button", { name: "停用" }).click();
     await expect(page.getByText("已停用")).toBeVisible();
     await page.getByRole("button", { name: "刪除" }).click();
-    await expect(page.getByText("尚未建立追蹤")).toBeVisible();
+    await expect(page.getByText("還沒有追蹤中的機票")).toBeVisible();
   });
 
   // ── (a) Search TPE→NRT returns ≥1 flight card ───────────────────────────

@@ -186,7 +186,7 @@ export default function ResultsSection({
           )}
 
           {/* Price trend */}
-          <PriceTrendSection route={route} />
+          <PriceTrendSection route={route} currentPrice={sortFlights(result.flights, "price")[0]?.price} />
         </>
       )}
     </div>

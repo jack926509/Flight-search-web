@@ -96,8 +96,8 @@ class CircuitBreaker:
             result = await fn(*args, **kwargs)
             await self._on_success()
             return result
-        except Exception:
-            await self._on_failure()
+        except Exception as exc:
+            await self._on_failure(exc)
             raise
 
     # ── Private: success / failure / probe ───────────────────────────────────
@@ -110,10 +110,10 @@ class CircuitBreaker:
             self._failure_count = 0
             await self._persist()
             return result
-        except Exception:
+        except Exception as exc:
             # Probe failed → OPEN, restart cooldown (E1)
             self._transition(CBState.OPEN, "probe_failure")
-            await self._persist()
+            await self._persist(error=exc)
             raise
 
     async def _on_success(self) -> None:
@@ -121,11 +121,11 @@ class CircuitBreaker:
             self._failure_count = 0
             await self._persist()
 
-    async def _on_failure(self) -> None:
+    async def _on_failure(self, exc: Exception) -> None:
         self._failure_count += 1
         if self._failure_count >= _FAILURE_THRESHOLD:
             self._transition(CBState.OPEN, f"failure_count_reached_{self._failure_count}")
-        await self._persist()
+        await self._persist(error=exc)
 
     def _transition(self, new_state: CBState, reason: str) -> None:
         old_state = self._state
@@ -143,7 +143,7 @@ class CircuitBreaker:
 
     # ── Persistence (E6: DB 是輔助，Supabase 故障不得讓熔斷器故障) ──────────
 
-    async def _persist(self) -> None:
+    async def _persist(self, error: Exception | None = None) -> None:
         if self._db is None:
             return
         payload = {
@@ -155,6 +155,9 @@ class CircuitBreaker:
         # Only touch last_success_at on success — a failure must not wipe it to NULL
         if self._state == CBState.CLOSED and self._failure_count == 0:
             payload["last_success_at"] = datetime.now(_UTC).isoformat()
+        if error is not None:
+            payload["last_failure_at"] = datetime.now(_UTC).isoformat()
+            payload["last_error"] = str(error)[:240]
         try:
             await self._db.table("provider_status").upsert(
                 payload,

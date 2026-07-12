@@ -1,6 +1,23 @@
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || "";
 
+/** Safari / WebKit 可能尚未提供 AbortSignal.timeout，改用相容的 AbortController。 */
+export function timeoutSignal(milliseconds: number): AbortSignal {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), milliseconds);
+  return controller.signal;
+}
+
+function combineSignals(signals: AbortSignal[]): AbortSignal {
+  if (typeof AbortSignal.any === "function") return AbortSignal.any(signals);
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  return controller.signal;
+}
+
 export interface Airport {
   iata: string;
   name: string;
@@ -34,6 +51,16 @@ export interface PricePoint {
   date: string;
   lowest_price_twd: number;
   source: string;
+}
+
+export interface PriceHistorySummary {
+  sample_count: number;
+  lowest?: number;
+  average?: number;
+  median?: number;
+  p20?: number;
+  sources: string[];
+  judgement: "collecting" | "recent_low" | "normal_or_high" | "unknown";
 }
 
 export type SortKey = "price" | "duration" | "depart";
@@ -198,8 +225,8 @@ export async function searchFlights(
   // 後端最長路徑（fast-flights 3-8s + failover Kiwi ~10s + jitter）約 30s；
   // 逾時不中斷就會永遠停在骨架屏，必須以 AbortController 兜底。
   // signal 為呼叫端（hook）在「新搜尋開始前」用來 abort 舊搜尋的外部訊號，與 45s 逾時合併。
-  const timeoutSignal = AbortSignal.timeout(45_000);
-  const combinedSignal = signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal;
+  const requestTimeout = timeoutSignal(45_000);
+  const combinedSignal = signal ? combineSignals([requestTimeout, signal]) : requestTimeout;
   let resp: Response;
   try {
     resp = await fetch(url.toString(), {
@@ -228,6 +255,27 @@ export interface HealthStatus {
   ok: boolean;
   /** DB ping 結果：true/false；後端未設 DB 時為 null */
   db: boolean | null;
+  providers: Record<string, ProviderHealth>;
+  schedulers: Record<string, SchedulerHealth>;
+}
+
+export interface ProviderHealth {
+  reachable: boolean;
+  state: "closed" | "open" | "half_open" | "unknown";
+  failure_count: number;
+  throttled: boolean;
+  throttled_until: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  /** 後端已截斷、可安全呈現的摘要；不含原始 upstream response。 */
+  last_error: string | null;
+}
+
+export interface SchedulerHealth {
+  last_status: "running" | "success" | "failed";
+  last_started_at?: string | null;
+  last_finished_at?: string | null;
+  last_error?: string | null;
 }
 
 /** 打 /api/health（免 token）。失敗回 ok:false，不拋錯 */
@@ -235,13 +283,18 @@ export async function fetchHealth(): Promise<HealthStatus> {
   try {
     const resp = await fetch(apiUrl("/api/health").toString(), {
       cache: "no-store",
-      signal: AbortSignal.timeout(5_000),
+      signal: timeoutSignal(5_000),
     });
-    if (!resp.ok) return { ok: false, db: null };
+    if (!resp.ok) return { ok: false, db: null, providers: {}, schedulers: {} };
     const data = await resp.json();
-    return { ok: data.status === "ok", db: data.db ?? null };
+    return {
+      ok: data.status === "ok",
+      db: data.db ?? null,
+      providers: data.providers ?? {},
+      schedulers: data.schedulers ?? {},
+    };
   } catch {
-    return { ok: false, db: null };
+    return { ok: false, db: null, providers: {}, schedulers: {} };
   }
 }
 
@@ -258,13 +311,28 @@ export async function fetchPriceHistory(
     const resp = await fetch(url.toString(), {
       headers: authHeaders(),
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      signal: timeoutSignal(15_000),
     });
     if (!resp.ok) return [];
     const data = await resp.json();
     return data.history ?? [];
   } catch {
     return [];
+  }
+}
+
+export async function fetchPriceHistorySummary(route: string, days = 90, currentPrice?: number): Promise<PriceHistorySummary | null> {
+  const url = apiUrl("/api/history");
+  url.searchParams.set("route", route);
+  url.searchParams.set("days", String(days));
+  if (currentPrice && currentPrice > 0) url.searchParams.set("current_price", String(currentPrice));
+  try {
+    const response = await fetch(url.toString(), { headers: authHeaders(), cache: "no-store", signal: timeoutSignal(15_000) });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.summary ?? null;
+  } catch {
+    return null;
   }
 }
 

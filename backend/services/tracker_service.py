@@ -3,7 +3,8 @@ import asyncio
 import hashlib
 import re
 import secrets
-from datetime import datetime, timezone
+from datetime import date as DateType
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from db import tracker_repository as tracker_repo
@@ -11,6 +12,35 @@ from providers.base import SearchResult
 
 _TRACKER_KEY_RE = re.compile(r"^trk_[A-Za-z0-9_-]{32,}$")
 _UTC = timezone.utc
+
+
+def tracker_check_interval_hours(departure_date: DateType | str) -> int:
+    """依出發日調整檢查頻率，避免所有追蹤一律高頻耗用資料來源配額。"""
+    departure = DateType.fromisoformat(str(departure_date))
+    days = (departure - datetime.now(_UTC).date()).days
+    if days > 90:
+        return 24
+    if days > 30:
+        return 12
+    if days >= 7:
+        return 6
+    return 12
+
+
+def tracker_is_due(tracker: dict, now: datetime | None = None) -> bool:
+    if not tracker.get("enabled", True):
+        return False
+    last_checked = tracker.get("last_checked_at")
+    if not last_checked:
+        return True
+    try:
+        parsed = datetime.fromisoformat(str(last_checked))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=_UTC)
+    except ValueError:
+        return True
+    current = now or datetime.now(_UTC)
+    return current - parsed >= timedelta(hours=tracker_check_interval_hours(tracker["depart_date"]))
 
 
 class TrackerKeyError(ValueError):
@@ -135,7 +165,7 @@ async def check_all_trackers(db, cached_search, concurrency: int = 3) -> int:
     async def run_one(tracker: dict) -> None:
         nonlocal checked
         async with sem:
-            if await check_tracker(db, cached_search, tracker) is not None:
+            if tracker_is_due(tracker) and await check_tracker(db, cached_search, tracker) is not None:
                 checked += 1
 
     await asyncio.gather(*(run_one(t) for t in trackers), return_exceptions=True)

@@ -14,6 +14,8 @@ interface Props {
   onToggle: (trackerId: string, enabled: boolean) => void;
   onMarkRead: (trackerId: string) => void;
   onDelete: (trackerId: string) => void;
+  trackerKey: string;
+  onRestore: (key: string) => Promise<void>;
 }
 
 function tripLabel(tracker: PriceTracker): string {
@@ -32,9 +34,11 @@ function dateLabel(tracker: PriceTracker): string {
 
 export default function TrackerDrawer({
   trackers, events, unreadCount, loading, error,
-  onReload, onToggle, onMarkRead, onDelete,
+  onReload, onToggle, onMarkRead, onDelete, trackerKey, onRestore,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [restoreKey, setRestoreKey] = useState("");
+  const [restoreError, setRestoreError] = useState<string | null>(null);
   const eventsByTracker = new Map<string, TrackerEvent[]>();
   for (const event of events) {
     const list = eventsByTracker.get(event.tracker_id) || [];
@@ -99,6 +103,31 @@ export default function TrackerDrawer({
                   </p>
                 </div>
               )}
+
+              <details className="rounded-xl border border-line bg-field p-3 text-sm">
+                <summary className="cursor-pointer font-semibold text-ink">備份或恢復追蹤清單</summary>
+                <div className="mt-3 space-y-2 text-xs text-muted text-pretty">
+                  <p>此恢復碼可在另一台裝置取回你的追蹤清單。請自行妥善保存，任何持有恢復碼的人都能查看該清單。</p>
+                  {trackerKey && (
+                    <label className="block">
+                      目前恢復碼
+                      <input readOnly value={trackerKey} aria-label="目前追蹤恢復碼" className="mt-1 min-h-[40px] w-full rounded border border-line bg-white px-2 font-mono text-xs text-ink" />
+                    </label>
+                  )}
+                  <label className="block">
+                    匯入恢復碼
+                    <input value={restoreKey} onChange={(event) => { setRestoreKey(event.target.value); setRestoreError(null); }} aria-label="匯入追蹤恢復碼" className="mt-1 min-h-[40px] w-full rounded border border-line bg-white px-2 font-mono text-xs text-ink" />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void onRestore(restoreKey).then(() => { setRestoreKey(""); setRestoreError(null); }).catch((error) => setRestoreError(error instanceof Error ? error.message : "恢復失敗"))}
+                    className="min-h-[40px] rounded-lg border border-line bg-white px-3 py-2 text-xs font-medium text-ink hover:bg-field"
+                  >
+                    匯入追蹤清單
+                  </button>
+                  {restoreError && <p className="text-danger">{restoreError}</p>}
+                </div>
+              </details>
 
               {trackers.map((tracker) => {
                 const latestEvents = eventsByTracker.get(tracker.id) || [];

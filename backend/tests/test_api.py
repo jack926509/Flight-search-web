@@ -48,6 +48,21 @@ def test_search_invalid_cabin():
     assert resp.status_code == 422
 
 
+def test_station_scan_rejects_more_than_seven_days_before_creating_job():
+    resp = client.post(
+        "/api/station-scans",
+        json={
+            "dest": "NRT",
+            "from_date": tomorrow,
+            "to_date": (date.today() + timedelta(days=9)).isoformat(),
+            "stations": ["BKK"],
+            "adults": 1,
+            "cabin": "economy",
+        },
+    )
+    assert resp.status_code == 422
+
+
 # ── successful response shape ─────────────────────────────────────────────────
 
 def test_search_returns_result_shape():
@@ -94,6 +109,49 @@ def test_health_ok():
     assert data["status"] == "ok"
     assert "fast_flights" in data["providers"]
     assert "kiwi" in data["providers"]
+
+
+def test_health_reports_persisted_provider_and_scheduler_status(monkeypatch):
+    """健康端點必須回傳近期真實狀態，而非固定宣稱 provider 可用。"""
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    provider_status = {
+        "fast_flights": {
+            "state": "open",
+            "failure_count": 3,
+            "last_success_at": "2026-07-12T01:00:00+00:00",
+            "last_failure_at": "2026-07-12T02:00:00+00:00",
+            "last_error": "upstream timeout",
+            "throttled": False,
+        },
+        "kiwi": {
+            "state": "closed",
+            "failure_count": 0,
+            "last_success_at": "2026-07-12T02:10:00+00:00",
+            "last_failure_at": None,
+            "last_error": None,
+            "throttled": False,
+        },
+    }
+    scheduler_status = {
+        "daily_price_fetch": {"last_status": "success", "last_finished_at": "2026-07-12T01:00:00+00:00"},
+        "daily_tracker_check": {"last_status": "failed", "last_finished_at": "2026-07-12T02:00:00+00:00"},
+    }
+
+    with (
+        patch("main.db_client.get_client", new_callable=AsyncMock, return_value=object()),
+        patch("main.repo.ping_db", new_callable=AsyncMock, return_value=True),
+        patch("main.repo.get_provider_health", new_callable=AsyncMock, return_value=provider_status),
+        patch("main.repo.get_scheduler_health", new_callable=AsyncMock, return_value=scheduler_status),
+    ):
+        resp = client.get("/api/health")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["providers"]["fast_flights"]["reachable"] is False
+    assert data["providers"]["fast_flights"]["last_failure_at"] == "2026-07-12T02:00:00+00:00"
+    assert data["providers"]["fast_flights"]["last_error"] == "upstream timeout"
+    assert data["providers"]["kiwi"]["reachable"] is True
+    assert data["schedulers"]["daily_tracker_check"]["last_status"] == "failed"
 
 
 # ── error handling ────────────────────────────────────────────────────────────

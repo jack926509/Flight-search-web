@@ -68,7 +68,13 @@ export function useTrackers() {
         storeKey(key);
         setTrackerKey(key);
       }
-      await reload(key);
+      // 建立 API 已回傳最新 tracker；先直接呈現，避免行動網路上第二次讀取失敗
+      // 反而把已成功的建立誤判成失敗。後續開啟抽屜時仍會走既有 reload。
+      applyList({
+        trackers: data.trackers?.length ? data.trackers : [data.tracker],
+        events: data.events ?? [],
+        unread_count: data.unread_count ?? 0,
+      });
       return data.tracker;
     } catch (e) {
       setError(e instanceof Error ? e.message : "追蹤建立失敗");
@@ -76,7 +82,7 @@ export function useTrackers() {
     } finally {
       setSaving(false);
     }
-  }, [reload, trackerKey]);
+  }, [applyList, trackerKey]);
 
   const setTrackerEnabled = useCallback(async (trackerId: string, enabled: boolean) => {
     if (!trackerKey) return;
@@ -94,6 +100,15 @@ export function useTrackers() {
     await reload(trackerKey);
   }, [reload, trackerKey]);
 
+  const restore = useCallback(async (rawKey: string) => {
+    const key = rawKey.trim();
+    if (!key) throw new Error("請貼上追蹤恢復碼");
+    const data = await fetchTrackers(key);
+    storeKey(key);
+    setTrackerKey(key);
+    applyList(data);
+  }, [applyList]);
+
   return {
     trackers,
     events,
@@ -106,5 +121,7 @@ export function useTrackers() {
     setTrackerEnabled,
     markTrackerRead,
     removeTracker,
+    trackerKey,
+    restore,
   };
 }
