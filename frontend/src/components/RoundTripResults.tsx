@@ -135,9 +135,13 @@ function RoundTripSegment({
                             <div className="mt-0.5 text-xs text-muted">{airline.detail}</div>
                           )}
                         </div>
-                        <div className="text-xs text-muted">
-                          {flight.depart_time} — {formatDuration(flight.duration_min)} — {flight.arrive_time}
-                          {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}
+                        <div className="text-sm">
+                          <span className="font-semibold text-ink">{flight.depart_time}</span>
+                          <span className="text-xs text-muted"> — {formatDuration(flight.duration_min)} — </span>
+                          <span className="font-semibold text-ink">{flight.arrive_time}</span>
+                          <span className="text-xs text-muted">
+                            {flight.stops === 0 ? "・直飛" : `・${flight.stops} 轉`}
+                          </span>
                         </div>
                       </div>
                     </div>

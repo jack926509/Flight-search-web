@@ -144,9 +144,14 @@ export default function MultiSearchCard({
         type="button"
         onClick={onSubmit}
         disabled={searching || !allLegsFilled}
-        className="w-full bg-primary text-white font-semibold py-3 px-6 rounded-xl shadow-card
-                   hover:bg-primary-dark hover:shadow-cardHover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
-                   transition-all min-h-[48px] flex items-center justify-center gap-2"
+        className={`w-full font-semibold py-3 px-6 rounded-xl transition-all min-h-[48px]
+                   flex items-center justify-center gap-2
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40
+                   ${searching
+                     ? "bg-primary text-white shadow-card"
+                     : !allLegsFilled
+                       ? "bg-field text-muted border border-line cursor-not-allowed"
+                       : "bg-primary text-white shadow-card hover:bg-primary-dark hover:shadow-cardHover"}`}
       >
         {searching ? (
           <>

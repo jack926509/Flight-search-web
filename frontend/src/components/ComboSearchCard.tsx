@@ -107,14 +107,15 @@ export default function ComboSearchCard({
   legA, legB, adults, cabin, today, running, filled,
   onLegAChange, onLegBChange, onAdultsChange, onCabinChange, onSubmit,
 }: Props) {
+  // 彈性天數 select 永遠有值，日期預設今天：不論表單是否填完都能算出實際查詢次數
   const totalQueries =
-    (filled ? datesFor(legA, today).length + datesFor(legB, today).length : 0);
+    datesFor(legA, today).length + datesFor(legB, today).length;
 
   return (
     <div className="bg-white rounded-card shadow-card border border-line-soft p-6 w-full max-w-3xl mx-auto">
       <p className="text-xs text-muted mb-4">
         外站組合比價：兩段各設基準日期＋彈性範圍，比出「哪天去＋哪天回」總價最低。
-        每個日期查一次（共 {totalQueries || "—"} 次），未快取時約需 1–3 分鐘，結果逐格填入。
+        每個日期查一次（共 {totalQueries} 次），未快取時約需 1–3 分鐘，結果逐格填入。
       </p>
 
       <div className="space-y-5 mb-5">
@@ -177,9 +178,14 @@ export default function ComboSearchCard({
         type="button"
         onClick={onSubmit}
         disabled={running || !filled}
-        className="w-full bg-primary text-white font-semibold py-3 px-6 rounded-xl shadow-card
-                   hover:bg-primary-dark hover:shadow-cardHover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
-                   transition-all min-h-[48px] flex items-center justify-center gap-2"
+        className={`w-full font-semibold py-3 px-6 rounded-xl transition-all min-h-[48px]
+                   flex items-center justify-center gap-2
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40
+                   ${running
+                     ? "bg-primary text-white shadow-card"
+                     : !filled
+                       ? "bg-field text-muted border border-line cursor-not-allowed"
+                       : "bg-primary text-white shadow-card hover:bg-primary-dark hover:shadow-cardHover"}`}
       >
         {running ? (
           <>

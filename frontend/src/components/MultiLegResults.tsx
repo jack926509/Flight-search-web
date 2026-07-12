@@ -153,10 +153,13 @@ export default function MultiLegResults({
                                   <div className="mt-0.5 text-xs text-muted">{airline.detail}</div>
                                 )}
                               </div>
-                              <div className="text-xs text-muted">
-                                {f.depart_time} — {formatDuration(f.duration_min)} —{" "}
-                                {f.arrive_time}
-                                {f.stops === 0 ? "・直飛" : `・${f.stops} 轉`}
+                              <div className="text-sm">
+                                <span className="font-semibold text-ink">{f.depart_time}</span>
+                                <span className="text-xs text-muted"> — {formatDuration(f.duration_min)} — </span>
+                                <span className="font-semibold text-ink">{f.arrive_time}</span>
+                                <span className="text-xs text-muted">
+                                  {f.stops === 0 ? "・直飛" : `・${f.stops} 轉`}
+                                </span>
                               </div>
                             </div>
                           </div>

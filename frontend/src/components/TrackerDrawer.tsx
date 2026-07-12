@@ -51,7 +51,8 @@ export default function TrackerDrawer({
           onReload();
         }}
         className="relative px-3 py-2 rounded-lg border border-line text-sm font-semibold text-ink
-                   hover:bg-field min-h-[40px]"
+                   hover:bg-field min-h-[40px]
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         aria-label="開啟追蹤清單"
       >
         追蹤
@@ -90,8 +91,12 @@ export default function TrackerDrawer({
               {loading && <p className="text-sm text-muted">讀取追蹤清單中…</p>}
               {error && <p className="text-sm text-red-600">{error}</p>}
               {!loading && trackers.length === 0 && (
-                <div className="py-10 text-center text-sm text-muted">
-                  尚未建立追蹤。查到票價後按「追蹤」即可加入。
+                <div className="py-12 text-center space-y-2">
+                  <p aria-hidden className="text-3xl">🔔</p>
+                  <p className="text-ink font-medium">還沒有追蹤中的機票</p>
+                  <p className="text-sm text-muted">
+                    搜尋航班後，按結果上方的「追蹤」，降價時會自動通知
+                  </p>
                 </div>
               )}
 

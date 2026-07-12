@@ -36,6 +36,7 @@ function Chip({
       onClick={onClick}
       aria-pressed={selected}
       className={`px-3 py-1.5 rounded-full text-xs font-medium shrink-0 min-h-[36px] border transition-colors
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40
         ${selected
           ? "bg-primary text-white border-primary"
           : "bg-white text-muted border-line hover:border-primary/40 hover:bg-field"}`}
@@ -76,7 +77,7 @@ export default function FlightFilterBar({
     <div
       role="group"
       aria-label="結果篩選"
-      className="flex items-center gap-2 overflow-x-auto pb-1"
+      className="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-x-visible"
     >
       <Chip selected={filters.directOnly} onClick={toggleDirect}>
         直飛
@@ -100,7 +101,8 @@ export default function FlightFilterBar({
         <button
           type="button"
           onClick={clearAll}
-          className="text-xs text-muted hover:text-muted underline shrink-0 min-h-[36px] px-1"
+          className="text-xs text-muted hover:text-muted underline shrink-0 min-h-[36px] px-1
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           清除篩選
         </button>

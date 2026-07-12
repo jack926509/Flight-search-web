@@ -16,6 +16,16 @@ import { useComboSearch } from "@/hooks/useComboSearch";
 import { useHealth } from "@/hooks/useHealth";
 import { useTrackers } from "@/hooks/useTrackers";
 
+/** 首頁熱門航線快速鍵：點擊只填表單（TPE → 代碼），不自動送出搜尋 */
+const POPULAR_ROUTES = [
+  { label: "東京 NRT", code: "NRT" },
+  { label: "大阪 KIX", code: "KIX" },
+  { label: "首爾 ICN", code: "ICN" },
+  { label: "曼谷 BKK", code: "BKK" },
+  { label: "香港 HKG", code: "HKG" },
+  { label: "新加坡 SIN", code: "SIN" },
+];
+
 export default function SearchPage() {
   const {
     origin, setOrigin,
@@ -94,7 +104,8 @@ export default function SearchPage() {
             aria-selected={mode === "single"}
             type="button"
             onClick={() => setMode("single")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               mode === "single"
                 ? "bg-primary text-white shadow-card"
                 : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
@@ -107,7 +118,8 @@ export default function SearchPage() {
             aria-selected={mode === "multi"}
             type="button"
             onClick={() => setMode("multi")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               mode === "multi"
                 ? "bg-primary text-white shadow-card"
                 : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
@@ -120,7 +132,8 @@ export default function SearchPage() {
             aria-selected={mode === "combo"}
             type="button"
             onClick={() => setMode("combo")}
-            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all ${
+            className={`px-4 py-2 rounded-full text-sm font-medium min-h-[44px] transition-all
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               mode === "combo"
                 ? "bg-primary text-white shadow-card"
                 : "bg-white border border-line text-muted hover:bg-field hover:border-primary/40"
@@ -155,6 +168,29 @@ export default function SearchPage() {
               onSwap={swapAirports}
               onSubmit={handleSubmit}
             />
+
+            {status === "idle" && returnStatus === "idle" && (
+              <div className="w-full max-w-3xl mx-auto mt-4">
+                <p className="text-sm text-muted mb-2">熱門航線</p>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_ROUTES.map((route) => (
+                    <button
+                      key={route.code}
+                      type="button"
+                      onClick={() => {
+                        setOrigin("TPE");
+                        setDest(route.code);
+                      }}
+                      className="bg-white border border-line rounded-full px-3 py-1.5 text-sm text-ink
+                                 hover:bg-field transition-colors
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      {route.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {tripType === "round-trip" ? (
               <RoundTripResults

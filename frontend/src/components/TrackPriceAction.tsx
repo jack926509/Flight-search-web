@@ -54,7 +54,8 @@ export default function TrackPriceAction({ defaultPrice, disabled = false, onTra
           onClick={submit}
           disabled={disabled || status === "saving" || !target || target <= 0}
           className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold
-                     hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]"
+                     hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[40px]
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           {status === "saving" ? "建立中…" : status === "done" ? "已追蹤" : "追蹤"}
         </button>

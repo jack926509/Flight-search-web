@@ -35,12 +35,12 @@ export default function FlightCard({ flight, cheapest }: Props) {
                 <div className="mt-0.5 text-xs text-muted">{airline.detail}</div>
               )}
             </div>
-            <div className="flex items-center gap-2 mt-1 text-sm text-muted">
-              <span className="font-medium">{flight.depart_time}</span>
+            <div className="flex items-center gap-2 mt-1 text-sm">
+              <span className="font-semibold text-ink">{flight.depart_time}</span>
               <span className="text-muted">—</span>
               <span className="text-xs text-muted">{formatDuration(flight.duration_min)}</span>
               <span className="text-muted">—</span>
-              <span className="font-medium">{flight.arrive_time}</span>
+              <span className="font-semibold text-ink">{flight.arrive_time}</span>
             </div>
           </div>
           {flight.stops === 0 ? (

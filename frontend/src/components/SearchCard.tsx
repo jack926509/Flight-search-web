@@ -63,7 +63,8 @@ export default function SearchCard({
             aria-selected={tripType === item.value}
             type="button"
             onClick={() => onTripTypeChange(item.value)}
-            className={`px-4 py-2 rounded-md text-sm font-semibold min-h-[40px] transition-colors ${
+            className={`px-4 py-2 rounded-md text-sm font-semibold min-h-[40px] transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
               tripType === item.value
                 ? "bg-white text-primary shadow-sm"
                 : "text-muted hover:text-ink"
@@ -87,7 +88,8 @@ export default function SearchCard({
           onClick={onSwap}
           aria-label="對調出發地與目的地"
           className="mb-1 p-2 rounded-full border border-line hover:bg-field
-                     transition-colors shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                     transition-colors shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
           ⇄
         </button>
@@ -181,9 +183,14 @@ export default function SearchCard({
         type="button"
         onClick={onSubmit}
         disabled={loading || !canSubmit}
-        className="w-full bg-primary text-white font-semibold py-3 px-6 rounded-xl shadow-card
-                   hover:bg-primary-dark hover:shadow-cardHover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-card
-                   transition-all min-h-[48px] flex items-center justify-center gap-2"
+        className={`w-full font-semibold py-3 px-6 rounded-xl transition-all min-h-[48px]
+                   flex items-center justify-center gap-2
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40
+                   ${loading
+                     ? "bg-primary text-white shadow-card"
+                     : !canSubmit
+                       ? "bg-field text-muted border border-line cursor-not-allowed"
+                       : "bg-primary text-white shadow-card hover:bg-primary-dark hover:shadow-cardHover"}`}
       >
         {loading ? (
           <>

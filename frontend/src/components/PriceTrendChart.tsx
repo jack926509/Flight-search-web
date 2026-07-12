@@ -89,12 +89,13 @@ export default function PriceTrendSection({ route }: Props) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className="w-full flex items-center justify-between px-5 py-4 text-sm font-medium
-                   text-ink hover:bg-field transition-colors min-h-[44px]"
+                   text-ink hover:bg-field transition-colors min-h-[44px]
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        <span>▶ 價格趨勢（近 90 天）</span>
+        <span>價格趨勢（近 90 天）</span>
         <span
-          className="transition-transform duration-200"
-          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+          aria-hidden
+          className={`transition-transform duration-200 ${open ? "rotate-90" : ""}`}
         >
           ▶
         </span>
