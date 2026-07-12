@@ -106,8 +106,10 @@ export function buildTasks(stations: string[], dates: string[]): ScanTask[] {
 }
 
 function cheapestOf(flights: Flight[]): Flight | null {
-  if (flights.length === 0) return null;
-  return [...flights].sort((a, b) => a.price - b.price)[0];
+  // price ≤ 0 視為無效報價：0 元航班會把全表分級基準拉到 0，所有列都誤標「底價」
+  const priced = flights.filter((f) => f.price > 0);
+  if (priced.length === 0) return null;
+  return [...priced].sort((a, b) => a.price - b.price)[0];
 }
 
 function cheapestDirectOf(flights: Flight[]): Flight | null {
@@ -227,11 +229,16 @@ export function decodeScanParams(searchParams: ParamsLike): ScanParams & { valid
   const dest = (searchParams.get("dest") || "").trim().toUpperCase();
   const from = searchParams.get("from") || "";
   const to = searchParams.get("to") || "";
-  const stations = (searchParams.get("stations") || "")
-    .split(",")
-    .map((s) => s.trim().toUpperCase())
-    .filter(Boolean)
-    .slice(0, MAX_SCAN_STATIONS);
+  // 去重＋排除 TPE：重複代碼會造成重複 cellKey（進度灌水、React 重複 key），
+  // TPE 已是直飛基準，再列為外站會重複出現兩次
+  const stations = Array.from(
+    new Set(
+      (searchParams.get("stations") || "")
+        .split(",")
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => s && s !== BASELINE_STATION)
+    )
+  ).slice(0, MAX_SCAN_STATIONS);
   const adults = Math.max(1, Math.min(9, Number(searchParams.get("adults")) || 1));
   const cabin = searchParams.get("cabin") || "economy";
   const valid = !!dest && !!from && !!to && stations.length > 0;

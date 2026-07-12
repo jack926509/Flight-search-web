@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AirportInput from "./AirportInput";
-import { MAX_SCAN_DAYS, MAX_SCAN_STATIONS, STATION_PRESETS } from "@/lib/stationScan";
+import { BASELINE_STATION, MAX_SCAN_DAYS, MAX_SCAN_STATIONS, STATION_PRESETS } from "@/lib/stationScan";
 
 interface Props {
   dest: string;
@@ -63,6 +63,10 @@ export default function StationScanCard({
     if (!code) return;
     if (!isValidIata(code)) {
       setCustomError("請輸入 3 碼英文機場代碼（例：CDG）");
+      return;
+    }
+    if (code === BASELINE_STATION) {
+      setCustomError("TPE 是直飛基準出發地，已自動納入比較，不需加為外站");
       return;
     }
     if (stations.includes(code)) {
