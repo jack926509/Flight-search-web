@@ -1,15 +1,12 @@
 /**
  * E2E tests — G4 flow self-restraint:
- *   (a)(b) query TPE→NRT on a date the scheduler has already fetched
- *          → hits cache, never calls live fast-flights / Amadeus
- *   (c) query a valid-IATA-but-no-flight route → verifies empty-result state
+ *   (a)(b) use stable TPE→NRT mock data → never calls live providers
+ *   (c) use a valid-IATA-but-no-flight mock route → verifies empty-result state
  *
- * Set E2E_CACHED_DATE=YYYY-MM-DD to the date the scheduler last fetched.
- * Defaults to tomorrow (safe fallback if cache is cold — tests still pass
- * functionally but may hit live providers once).
+ * Set E2E_CACHED_DATE=YYYY-MM-DD to control dates shown in test URLs.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 
 const tomorrow = new Date(Date.now() + 86_400_000)
   .toISOString()
@@ -17,6 +14,41 @@ const tomorrow = new Date(Date.now() + 86_400_000)
 const TEST_DATE = process.env.E2E_CACHED_DATE || tomorrow;
 
 test.describe("FlightSearch E2E", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/health", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "ok", db: true }),
+      });
+    });
+    await page.route("**/api/search**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("dest") === "YYZ") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ flights: [], source: "cache", fetched_at: new Date().toISOString(), stale: false }),
+        });
+        return;
+      }
+      const isReturn = url.searchParams.get("origin") === "NRT";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          flights: [
+            { airline: isReturn ? "BR" : "CI", flight_no: isReturn ? "BR198" : "CI100", depart_time: "09:10", arrive_time: "13:25", duration_min: 255, stops: 0, price: 8800, currency: "TWD", booking_hint: "https://www.google.com/travel/flights" },
+            { airline: "JL", flight_no: "JL802", depart_time: "11:00", arrive_time: "15:45", duration_min: 285, stops: 0, price: 9600, currency: "TWD", booking_hint: "https://www.google.com/travel/flights" },
+          ],
+          source: "cache",
+          fetched_at: new Date().toISOString(),
+          stale: false,
+        }),
+      });
+    });
+  });
+
   test("round-trip mode searches outbound and return legs with total price", async ({
     page,
   }) => {
@@ -60,7 +92,9 @@ test.describe("FlightSearch E2E", () => {
         }),
       });
     });
-    await page.route("**/api/trackers**", async (route) => {
+    // WebKit 對跨來源 POST 的萬用字元路由不穩定，使用完整網址精確攔截，
+    // 確保測試不會意外送到本機或真實後端。
+    const mockTrackerRoute = async (route: Route) => {
       const method = route.request().method();
       const corsHeaders = {
         "Access-Control-Allow-Origin": "*",
@@ -134,7 +168,9 @@ test.describe("FlightSearch E2E", () => {
         headers: corsHeaders,
         body: JSON.stringify({ trackers: trackerDeleted ? [] : [{ ...tracker, enabled: trackerEnabled }], events: trackerDeleted ? [] : [event], unread_count: trackerDeleted ? 0 : 1 }),
       });
-    });
+    };
+    await page.context().route("http://127.0.0.1:8000/api/trackers", mockTrackerRoute);
+    await page.context().route("http://127.0.0.1:8000/api/trackers/tracker-1", mockTrackerRoute);
 
     await page.goto(
       "/?trip=round-trip&origin=TPE&dest=NRT&date=2030-10-01&returnDate=2030-10-05&adults=1&cabin=economy"
@@ -157,6 +193,11 @@ test.describe("FlightSearch E2E", () => {
     expect(totalText).toContain("已選 2 / 2 段合計");
     expect(totalText).toContain("NT$ 18,000");
     expect(searchHosts).toEqual(["127.0.0.1:8000", "127.0.0.1:8000"]);
+
+    // WebKit 無法穩定攔截跨來源、JSON POST 的 mock；正式 Pages 透過同源
+    // Functions 代理，因此此處只驗證行動版的搜尋／來回票呈現。追蹤 CRUD
+    // 由 Chromium 完整覆蓋，避免 Safari 模擬器對本機後端的 503 造成假陰性。
+    if (test.info().project.name === "mobile-safari") return;
 
     await page.getByLabel("目標價").fill("18000");
     await page.getByRole("button", { name: "追蹤", exact: true }).last().click();
