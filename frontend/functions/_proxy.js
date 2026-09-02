@@ -62,7 +62,14 @@ export async function onRequest({ request, env, params }) {
     return jsonError(405, "METHOD_NOT_ALLOWED", "Method is not supported for this endpoint");
   }
 
-  const apiBase = (env.FLIGHT_SEARCH_API_URL || "https://flight-search-api.zeabur.app").replace(/\/+$/, "");
+  const apiBase = (env.FLIGHT_SEARCH_API_URL || "").replace(/\/+$/, "");
+  if (!apiBase) {
+    return jsonError(
+      503,
+      "BACKEND_UNAVAILABLE",
+      "Backend service is unavailable while the project is under maintenance",
+    );
+  }
   const token = env.FLIGHT_SEARCH_API_TOKEN || env.API_TOKEN || "";
   if (endpoint !== "health" && !token) {
     return jsonError(500, "PROXY_NOT_CONFIGURED", "API proxy token is not configured");
